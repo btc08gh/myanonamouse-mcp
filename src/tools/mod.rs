@@ -336,8 +336,9 @@ fn map_languages(names: &[String]) -> Result<Vec<u32>, String> {
         Ok(ids)
     } else {
         Err(format!(
-            "Unrecognized language(s): {}. Pass standard language names such as \
-             \"English\", \"French\", \"German\", \"Spanish\", \"Japanese\", etc.",
+            "Unrecognized language(s): {}. Most common languages on MAM: English, German, \
+             French, Spanish, Italian. Many more are supported — pass any standard language \
+             name (e.g. \"Dutch\", \"Japanese\", \"Portuguese\") or ISO 639-1 code (e.g. \"de\", \"fr\").",
             unknown.join(", "),
         ))
     }
@@ -393,8 +394,9 @@ struct SearchAudiobooksParams {
     /// Multiple genres are OR-combined.
     #[serde(default)]
     genre: Option<Vec<String>>,
-    /// Language filter. Pass language names such as "English", "French", "German", "Spanish".
-    /// Multiple languages are OR-combined. Supports all 64 languages on MAM.
+    /// Language filter. Top languages on MAM: "English", "German", "French", "Spanish", "Italian".
+    /// Many more are supported — pass any standard language name or ISO 639-1 code (e.g. "de", "fr").
+    /// Multiple languages are OR-combined.
     #[serde(default)]
     language: Option<Vec<String>>,
     /// Sort order (case-insensitive). Valid values: newest, oldest, most seeders, fewest seeders,
@@ -432,8 +434,9 @@ struct SearchEbooksParams {
     /// Multiple genres are OR-combined.
     #[serde(default)]
     genre: Option<Vec<String>>,
-    /// Language filter. Pass language names such as "English", "French", "German", "Spanish".
-    /// Multiple languages are OR-combined. Supports all 64 languages on MAM.
+    /// Language filter. Top languages on MAM: "English", "German", "French", "Spanish", "Italian".
+    /// Many more are supported — pass any standard language name or ISO 639-1 code (e.g. "de", "fr").
+    /// Multiple languages are OR-combined.
     #[serde(default)]
     language: Option<Vec<String>>,
     /// Sort order (case-insensitive). Valid values: newest, oldest, most seeders, fewest seeders,
@@ -468,7 +471,8 @@ struct SearchMusicParams {
     /// Multiple genres are OR-combined.
     #[serde(default)]
     genre: Option<Vec<String>>,
-    /// Language filter. Pass language names such as "English", "French", "German".
+    /// Language filter. Top languages on MAM: "English", "German", "French", "Spanish", "Italian".
+    /// Many more are supported — pass any standard language name or ISO 639-1 code (e.g. "de", "fr").
     /// Multiple languages are OR-combined.
     #[serde(default)]
     language: Option<Vec<String>>,
@@ -501,7 +505,8 @@ struct SearchRadioParams {
     /// Reading. Multiple genres are OR-combined.
     #[serde(default)]
     genre: Option<Vec<String>>,
-    /// Language filter. Pass language names such as "English", "French", "German".
+    /// Language filter. Top languages on MAM: "English", "German", "French", "Spanish", "Italian".
+    /// Many more are supported — pass any standard language name or ISO 639-1 code (e.g. "de", "fr").
     /// Multiple languages are OR-combined.
     #[serde(default)]
     language: Option<Vec<String>>,
@@ -553,22 +558,11 @@ struct SearchParams {
     /// "fl" (freeleech), "fl-VIP" (freeleech or VIP), "VIP", "nVIP" (not VIP).
     #[serde(default)]
     search_type: Option<String>,
-    /// Filter by language ID. All valid values:
-    /// 1 (English), 2 (Chinese), 3 (Gujarati), 4 (Spanish), 5 (Kannada), 6 (Burmese),
-    /// 7 (Thai), 8 (Hindi), 9 (Marathi), 10 (Telugu), 11 (Tamil), 12 (Javanese),
-    /// 13 (Vietnamese), 14 (Punjabi), 15 (Urdu), 16 (Russian), 17 (Afrikaans),
-    /// 18 (Bulgarian), 19 (Catalan), 20 (Czech), 21 (Danish), 22 (Dutch), 23 (Finnish),
-    /// 24 (Scottish Gaelic), 25 (Ukrainian), 26 (Greek), 27 (Hebrew), 28 (Hungarian),
-    /// 29 (Tagalog), 30 (Romanian), 31 (Serbian), 32 (Arabic), 33 (Malay), 34 (Portuguese),
-    /// 35 (Bengali), 36 (French), 37 (German), 38 (Japanese), 39 (Farsi), 40 (Swedish),
-    /// 41 (Korean), 42 (Turkish), 43 (Italian), 44 (Cantonese), 45 (Polish), 46 (Latin),
-    /// 47 (Other), 48 (Norwegian), 49 (Croatian), 50 (Lithuanian), 51 (Bosnian),
-    /// 52 (Brazilian Portuguese), 53 (Indonesian), 54 (Slovenian), 55 (Castilian Spanish),
-    /// 56 (Irish), 57 (Manx), 58 (Malayalam), 59 (Greek Ancient), 60 (Sanskrit),
-    /// 61 (Estonian), 62 (Latvian), 63 (Icelandic), 64 (Albanian).
-    /// Omit to search all languages.
+    /// Language filter. Top languages on MAM: "English", "German", "French", "Spanish", "Italian".
+    /// Many more are supported — pass any standard language name or ISO 639-1 code (e.g. "de", "fr").
+    /// Multiple languages are OR-combined. Omit to search all languages.
     #[serde(default)]
-    lang: Option<Vec<u32>>,
+    lang: Option<Vec<String>>,
     /// Minimum number of seeders (inclusive). Use 1 to exclude dead torrents.
     #[serde(default)]
     min_seeders: Option<i32>,
@@ -832,11 +826,15 @@ impl MamServer {
         Parameters(p): Parameters<SearchParams>,
     ) -> Result<String, String> {
         let sort = parse_sort(p.sort.as_deref().unwrap_or(""))?;
+        let lang = match p.lang.as_deref() {
+            Some(names) if !names.is_empty() => map_languages(names)?,
+            _ => vec![],
+        };
         self.do_search(
             &p.query,
             p.main_cat.unwrap_or_default(),
             p.cat.unwrap_or_default(),
-            p.lang.unwrap_or_default(),
+            lang,
             sort,
             p.search_type.as_deref().unwrap_or("all"),
             p.min_seeders,
