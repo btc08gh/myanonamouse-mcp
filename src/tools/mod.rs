@@ -51,6 +51,31 @@ struct TorrentResult {
 }
 
 #[derive(Deserialize)]
+struct TorrentDetail {
+    id: u64,
+    title: String,
+    catname: Option<String>,
+    lang_code: Option<String>,
+    size: Option<String>,
+    numfiles: Option<u64>,
+    filetype: Option<String>,
+    author_info: Option<Value>,
+    narrator_info: Option<Value>,
+    series_info: Option<Value>,
+    tags: Option<Value>,
+    description: Option<String>,
+    isbn: Option<Value>,      // API returns integer or string
+    mediainfo: Option<String>,
+    seeders: Option<u64>,
+    leechers: Option<u64>,
+    times_completed: Option<u64>,
+    free: Option<u64>,
+    vip: Option<u64>,
+    added: Option<String>,
+    dl: Option<String>,
+}
+
+#[derive(Deserialize)]
 struct UserDataResponse {
     username: Option<String>,
     uid: Option<u64>,
@@ -168,6 +193,14 @@ struct BonusHistoryParams {
     bonus_types: Option<Vec<String>>,
     /// Fetch history for another user by their user ID
     other_user_id: Option<u64>,
+}
+
+#[derive(Deserialize, schemars::JsonSchema)]
+struct GetTorrentDetailsParams {
+    /// Torrent ID to look up. Provide either this or `hash`, not both.
+    id: Option<u64>,
+    /// Torrent info-hash (hex string) to look up. Provide either this or `id`, not both.
+    hash: Option<String>,
 }
 
 #[derive(Deserialize, schemars::JsonSchema)]
@@ -337,6 +370,79 @@ impl MamServer {
         Ok(Self::format_bonus_history(entries))
     }
 
+    /// Fetch full details for a single torrent by its ID or info-hash.
+    /// Returns all available fields: title, category, language, authors, narrators, series,
+    /// tags, description, ISBN, media info, file count, size, seeders, leechers, flags,
+    /// date added, and download URL.
+    /// Use this after finding a torrent ID from search_torrents to get complete information.
+    #[tool]
+    async fn get_torrent_details(
+        &self,
+        Parameters(p): Parameters<GetTorrentDetailsParams>,
+    ) -> Result<String, String> {
+        if p.id.is_none() && p.hash.is_none() {
+            return Err("Provide either `id` or `hash`.".to_string());
+        }
+
+        let mut tor = serde_json::json!({
+            "searchType": "all",
+            "searchIn": "torrents",
+            "startNumber": "0",
+            "perpage": 1,
+        });
+        if let Some(id) = p.id {
+            tor["id"] = serde_json::json!(id);
+        }
+        if let Some(hash) = &p.hash {
+            tor["hash"] = serde_json::json!(hash);
+        }
+
+        let body = serde_json::json!({
+            "tor": tor,
+            "dlLink": "true",
+            "description": "",
+            "isbn": "",
+            "mediaInfo": "",
+        });
+
+        let resp = self
+            .client
+            .post(format!("{}/tor/js/loadSearchJSONbasic.php", crate::mam::BASE_URL))
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| format!("Request failed: {e}"))?;
+
+        let status = resp.status();
+        if !status.is_success() {
+            let text = resp.text().await.unwrap_or_default();
+            return Err(crate::mam::enrich_error(status.as_u16(), &text));
+        }
+
+        let body = resp.text().await.map_err(|e| format!("Failed to read response: {e}"))?;
+
+        if let Ok(v) = serde_json::from_str::<Value>(&body) {
+            if v.get("data").is_none() {
+                if let Some(msg) = v.get("error").and_then(|e| e.as_str()) {
+                    if msg.contains("Nothing returned") {
+                        return Ok("No torrent found.".to_string());
+                    }
+                    return Err(format!("Lookup error: {msg}"));
+                }
+            }
+        }
+
+        #[derive(Deserialize)]
+        struct DetailResponse { data: Vec<TorrentDetail> }
+        let parsed: DetailResponse = serde_json::from_str(&body)
+            .map_err(|e| format!("Failed to parse response: {e}\nBody: {body}"))?;
+
+        match parsed.data.into_iter().next() {
+            None => Ok("No torrent found.".to_string()),
+            Some(t) => Ok(Self::format_torrent_detail(t)),
+        }
+    }
+
     /// Get the current IP address and ASN information as seen by MyAnonamouse.
     #[tool]
     async fn get_ip_info(&self, Parameters(_): Parameters<NoParams>) -> Result<String, String> {
@@ -496,6 +602,108 @@ impl MamServer {
                         crate::mam::BASE_URL
                     ));
                 }
+            }
+        }
+
+        out
+    }
+
+    fn format_torrent_detail(t: TorrentDetail) -> String {
+        let mut out = String::new();
+
+        out.push_str(&format!("Title:       {}\n", t.title));
+        out.push_str(&format!("ID:          {}\n", t.id));
+
+        if let Some(cat) = &t.catname {
+            out.push_str(&format!("Category:    {cat}\n"));
+        }
+        if let Some(lang) = &t.lang_code {
+            out.push_str(&format!("Language:    {lang}\n"));
+        }
+        if let Some(size) = &t.size {
+            out.push_str(&format!("Size:        {size}\n"));
+        }
+        if let Some(n) = t.numfiles {
+            out.push_str(&format!("Files:       {n}\n"));
+        }
+        if let Some(ft) = &t.filetype {
+            if !ft.is_empty() {
+                out.push_str(&format!("File type:   {ft}\n"));
+            }
+        }
+
+        let authors = t.author_info.as_ref()
+            .and_then(|v| v.as_str())
+            .map(Self::parse_name_map)
+            .unwrap_or_default();
+        if !authors.is_empty() {
+            out.push_str(&format!("Authors:     {}\n", authors.join(", ")));
+        }
+
+        let narrators = t.narrator_info.as_ref()
+            .and_then(|v| v.as_str())
+            .map(Self::parse_name_map)
+            .unwrap_or_default();
+        if !narrators.is_empty() {
+            out.push_str(&format!("Narrators:   {}\n", narrators.join(", ")));
+        }
+
+        let series = t.series_info.as_ref()
+            .and_then(|v| v.as_str())
+            .map(Self::parse_series_map)
+            .unwrap_or_default();
+        if !series.is_empty() {
+            out.push_str(&format!("Series:      {}\n", series.join(", ")));
+        }
+
+        if let Some(tags) = t.tags.as_ref().and_then(|v| v.as_str()) {
+            if !tags.is_empty() {
+                out.push_str(&format!("Tags:        {tags}\n"));
+            }
+        }
+        if let Some(isbn) = &t.isbn {
+            let s = Self::value_as_str(isbn);
+            if !s.is_empty() && s != "0" {
+                out.push_str(&format!("ISBN:        {s}\n"));
+            }
+        }
+
+        out.push_str(&format!(
+            "Seeders:     {}\nLeechers:    {}\nSnatched:    {}\n",
+            t.seeders.unwrap_or(0),
+            t.leechers.unwrap_or(0),
+            t.times_completed.unwrap_or(0),
+        ));
+
+        let is_free = t.free.unwrap_or(0) == 1;
+        let is_vip = t.vip.unwrap_or(0) == 1;
+        if is_free || is_vip {
+            let flags: Vec<&str> = [is_free.then_some("Free"), is_vip.then_some("VIP")]
+                .into_iter().flatten().collect();
+            out.push_str(&format!("Flags:       {}\n", flags.join(", ")));
+        }
+
+        if let Some(added) = &t.added {
+            out.push_str(&format!("Added:       {added}\n"));
+        }
+
+        if let Some(dl) = &t.dl {
+            if !dl.is_empty() {
+                out.push_str(&format!(
+                    "DL URL:      {}/tor/download.php/{dl}\n",
+                    crate::mam::BASE_URL
+                ));
+            }
+        }
+
+        if let Some(desc) = &t.description {
+            if !desc.is_empty() {
+                out.push_str(&format!("\nDescription:\n{desc}\n"));
+            }
+        }
+        if let Some(mi) = &t.mediainfo {
+            if !mi.is_empty() {
+                out.push_str(&format!("\nMedia Info:\n{mi}\n"));
             }
         }
 
