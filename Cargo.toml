@@ -2,6 +2,7 @@
 name = "myanonamouse-mcp"
 version = "0.3.2"
 edition = "2021"
+default-run = "myanonamouse-mcp"
 
 [[bin]]
 name = "myanonamouse-mcp"
