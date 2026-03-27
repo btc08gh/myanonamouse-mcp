@@ -96,6 +96,33 @@ struct SearchParams {
     /// 15 (Musicology), 16 (Radio). Omit to search all categories.
     #[serde(default)]
     main_cat: Option<Vec<u32>>,
+    /// Filter by torrent type. Valid values:
+    /// "all" (default), "active" (1+ seeders), "inactive" (0 seeders),
+    /// "fl" (freeleech), "fl-VIP" (freeleech or VIP), "VIP", "nVIP" (not VIP).
+    #[serde(default)]
+    search_type: Option<String>,
+    /// Filter by language ID. Common values: 1 (English), 36 (French), 37 (German),
+    /// 43 (Italian), 4 (Spanish), 16 (Russian), 2 (Chinese), 38 (Japanese), 48 (Norwegian),
+    /// 45 (Polish), 34 (Portuguese), 40 (Swedish), 22 (Dutch). Omit for all languages.
+    #[serde(default)]
+    lang: Option<Vec<u32>>,
+    /// Minimum number of seeders (inclusive). Use 1 to exclude dead torrents.
+    #[serde(default)]
+    min_seeders: Option<i32>,
+    /// Filter by subcategory IDs. Common values: 39 (Audiobooks - Action/Adventure),
+    /// 40 (Audiobooks - Crime/Thriller), 41 (Audiobooks - Fantasy), 42 (Audiobooks - General Fiction),
+    /// 43 (Audiobooks - Horror), 44 (Audiobooks - Juvenile), 45 (Audiobooks - Literary Classics),
+    /// 46 (Audiobooks - Romance), 47 (Audiobooks - Science Fiction), 54 (Audiobooks - History),
+    /// 83 (Audiobooks - Business), 84 (Audiobooks - Instructional), 87 (Audiobooks - Mystery),
+    /// 88 (Audiobooks - Philosophy), 98 (Audiobooks - Historical Fiction), 108 (Audiobooks - Urban Fantasy),
+    /// 111 (Audiobooks - Young Adult), 60 (Ebooks - Action/Adventure), 61 (Ebooks - Comics/Graphic novels),
+    /// 62 (Ebooks - Crime/Thriller), 63 (Ebooks - Fantasy), 64 (Ebooks - General Fiction),
+    /// 65 (Ebooks - Horror), 67 (Ebooks - Literary Classics), 68 (Ebooks - Romance),
+    /// 69 (Ebooks - Science Fiction), 74 (Ebooks - General Non-Fiction), 76 (Ebooks - History),
+    /// 82 (Ebooks - Recreation), 94 (Ebooks - Mystery), 102 (Ebooks - Historical Fiction),
+    /// 109 (Ebooks - Urban Fantasy), 112 (Ebooks - Young Adult).
+    #[serde(default)]
+    cat: Option<Vec<u32>>,
 }
 
 #[derive(Deserialize, schemars::JsonSchema)]
@@ -125,9 +152,18 @@ struct NoParams {}
 
 #[tool_router]
 impl MamServer {
-    /// Search for torrents on MyAnonamouse. Returns a formatted list of matching torrents
-    /// including title, authors, narrators, series, size, category, and seeder/leecher counts.
-    /// Supports filtering by main category and sorting by seeders, size, date, and other fields.
+    /// Search for torrents on MyAnonamouse (MAM), a private tracker specializing in audiobooks and
+    /// ebooks. Returns a formatted list of matching torrents including title, authors, narrators,
+    /// series, size, category, seeder/leecher counts, and a download key.
+    ///
+    /// Tips for best results:
+    /// - Use `cat` to filter to a specific genre (e.g. 41 for Audiobooks - Fantasy, 63 for Ebooks - Fantasy).
+    ///   Prefer `cat` over `main_cat` when you know the genre; both can be combined.
+    /// - Use `search_type: "active"` to exclude dead torrents (no seeders).
+    /// - Use `search_type: "fl"` or `"fl-VIP"` to find freeleech torrents, which do not count against
+    ///   your download ratio (though seeding to site requirements is still required).
+    /// - Use `sort: "seedersDesc"` to surface the most well-seeded results first.
+    /// - Search matches title, author, narrator, and series name by default.
     #[tool]
     async fn search_torrents(
         &self,
@@ -135,22 +171,33 @@ impl MamServer {
     ) -> Result<String, String> {
         let limit = p.limit.unwrap_or(20).min(100);
         let sort_type = p.sort.as_deref().unwrap_or("default");
+        let search_type = p.search_type.as_deref().unwrap_or("all");
         let main_cat: Vec<u32> = p.main_cat.unwrap_or_default();
+        let cat: Vec<u32> = p.cat.unwrap_or_default();
+        let mut tor = serde_json::json!({
+            "text": p.query,
+            "srchIn": ["title", "author", "narrator", "series"],
+            "searchType": search_type,
+            "searchIn": "torrents",
+            "main_cat": main_cat,
+            "cat": cat,
+            "browseFlagsHideVsShow": "0",
+            "startDate": "",
+            "endDate": "",
+            "hash": "",
+            "sortType": sort_type,
+            "startNumber": "0",
+            "perpage": limit,
+        });
+        // Omit array fields when empty — sending [] breaks the MAM search engine
+        if let Some(lang) = p.lang.filter(|v| !v.is_empty()) {
+            tor["browse_lang"] = serde_json::json!(lang);
+        }
+        if let Some(min) = p.min_seeders {
+            tor["minSeeders"] = serde_json::json!(min);
+        }
         let body = serde_json::json!({
-            "tor": {
-                "text": p.query,
-                "srchIn": ["title", "author", "narrator"],
-                "searchType": "all",
-                "searchIn": "torrents",
-                "main_cat": main_cat,
-                "browseFlagsHideVsShow": "0",
-                "startDate": "",
-                "endDate": "",
-                "hash": "",
-                "sortType": sort_type,
-                "startNumber": "0",
-                "perpage": limit,
-            },
+            "tor": tor,
             "dlLink": "true",
             "thumbnail": "false",
         });
@@ -170,6 +217,19 @@ impl MamServer {
         }
 
         let body = resp.text().await.map_err(|e| format!("Failed to read search response: {e}"))?;
+
+        // MAM returns {"error":"Nothing returned, out of 0"} for empty result sets
+        if let Ok(v) = serde_json::from_str::<serde_json::Value>(&body) {
+            if v.get("data").is_none() {
+                if let Some(msg) = v.get("error").and_then(|e| e.as_str()) {
+                    if msg.contains("Nothing returned") {
+                        return Ok(format!("No results found for \"{}\".", p.query));
+                    }
+                    return Err(format!("Search error: {msg}"));
+                }
+            }
+        }
+
         let parsed: SearchResponse = serde_json::from_str(&body)
             .map_err(|e| format!("Failed to parse search response: {e}\nBody: {body}"))?;
 
