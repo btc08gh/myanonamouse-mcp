@@ -87,40 +87,67 @@ struct SearchParams {
     /// Maximum number of results to return (default: 20, max: 100)
     #[serde(default)]
     limit: Option<u32>,
-    /// Sort order. Valid values: titleAsc, titleDesc, sizeAsc, sizeDesc, seedersAsc, seedersDesc,
-    /// leechersAsc, leechersDesc, snatchedAsc, snatchedDesc, dateAsc, dateDesc, random.
+    /// Sort order. Valid values:
+    /// titleAsc, titleDesc, sizeAsc, sizeDesc, fileAsc, fileDesc,
+    /// seedersAsc, seedersDesc, leechersAsc, leechersDesc,
+    /// snatchedAsc, snatchedDesc, dateAsc, dateDesc,
+    /// categoryAsc, categoryDesc, random.
     /// Defaults to relevance.
     #[serde(default)]
     sort: Option<String>,
-    /// Filter by main category IDs. Valid values: 13 (AudioBooks), 14 (E-Books),
+    /// Filter by main category ID. Valid values: 13 (AudioBooks), 14 (E-Books),
     /// 15 (Musicology), 16 (Radio). Omit to search all categories.
+    /// Use `cat` instead when you know the specific genre.
     #[serde(default)]
     main_cat: Option<Vec<u32>>,
     /// Filter by torrent type. Valid values:
-    /// "all" (default), "active" (1+ seeders), "inactive" (0 seeders),
+    /// "all" (default, includes dead torrents), "active" (1+ seeders), "inactive" (0 seeders),
     /// "fl" (freeleech), "fl-VIP" (freeleech or VIP), "VIP", "nVIP" (not VIP).
     #[serde(default)]
     search_type: Option<String>,
-    /// Filter by language ID. Common values: 1 (English), 36 (French), 37 (German),
-    /// 43 (Italian), 4 (Spanish), 16 (Russian), 2 (Chinese), 38 (Japanese), 48 (Norwegian),
-    /// 45 (Polish), 34 (Portuguese), 40 (Swedish), 22 (Dutch). Omit for all languages.
+    /// Filter by language ID. All valid values:
+    /// 1 (English), 2 (Chinese), 3 (Gujarati), 4 (Spanish), 5 (Kannada), 6 (Burmese),
+    /// 7 (Thai), 8 (Hindi), 9 (Marathi), 10 (Telugu), 11 (Tamil), 12 (Javanese),
+    /// 13 (Vietnamese), 14 (Punjabi), 15 (Urdu), 16 (Russian), 17 (Afrikaans),
+    /// 18 (Bulgarian), 19 (Catalan), 20 (Czech), 21 (Danish), 22 (Dutch), 23 (Finnish),
+    /// 24 (Scottish Gaelic), 25 (Ukrainian), 26 (Greek), 27 (Hebrew), 28 (Hungarian),
+    /// 29 (Tagalog), 30 (Romanian), 31 (Serbian), 32 (Arabic), 33 (Malay), 34 (Portuguese),
+    /// 35 (Bengali), 36 (French), 37 (German), 38 (Japanese), 39 (Farsi), 40 (Swedish),
+    /// 41 (Korean), 42 (Turkish), 43 (Italian), 44 (Cantonese), 45 (Polish), 46 (Latin),
+    /// 47 (Other), 48 (Norwegian), 49 (Croatian), 50 (Lithuanian), 51 (Bosnian),
+    /// 52 (Brazilian Portuguese), 53 (Indonesian), 54 (Slovenian), 55 (Castilian Spanish),
+    /// 56 (Irish), 57 (Manx), 58 (Malayalam), 59 (Greek Ancient), 60 (Sanskrit),
+    /// 61 (Estonian), 62 (Latvian), 63 (Icelandic), 64 (Albanian).
+    /// Omit to search all languages.
     #[serde(default)]
     lang: Option<Vec<u32>>,
     /// Minimum number of seeders (inclusive). Use 1 to exclude dead torrents.
     #[serde(default)]
     min_seeders: Option<i32>,
-    /// Filter by subcategory IDs. Common values: 39 (Audiobooks - Action/Adventure),
-    /// 40 (Audiobooks - Crime/Thriller), 41 (Audiobooks - Fantasy), 42 (Audiobooks - General Fiction),
-    /// 43 (Audiobooks - Horror), 44 (Audiobooks - Juvenile), 45 (Audiobooks - Literary Classics),
-    /// 46 (Audiobooks - Romance), 47 (Audiobooks - Science Fiction), 54 (Audiobooks - History),
-    /// 83 (Audiobooks - Business), 84 (Audiobooks - Instructional), 87 (Audiobooks - Mystery),
-    /// 88 (Audiobooks - Philosophy), 98 (Audiobooks - Historical Fiction), 108 (Audiobooks - Urban Fantasy),
-    /// 111 (Audiobooks - Young Adult), 60 (Ebooks - Action/Adventure), 61 (Ebooks - Comics/Graphic novels),
-    /// 62 (Ebooks - Crime/Thriller), 63 (Ebooks - Fantasy), 64 (Ebooks - General Fiction),
-    /// 65 (Ebooks - Horror), 67 (Ebooks - Literary Classics), 68 (Ebooks - Romance),
-    /// 69 (Ebooks - Science Fiction), 74 (Ebooks - General Non-Fiction), 76 (Ebooks - History),
-    /// 82 (Ebooks - Recreation), 94 (Ebooks - Mystery), 102 (Ebooks - Historical Fiction),
-    /// 109 (Ebooks - Urban Fantasy), 112 (Ebooks - Young Adult).
+    /// Filter by subcategory ID. All valid values:
+    /// Audiobooks: 39 (Action/Adventure), 49 (Art), 50 (Biographical), 83 (Business),
+    /// 51 (Computer/Internet), 97 (Crafts), 40 (Crime/Thriller), 41 (Fantasy), 106 (Food),
+    /// 42 (General Fiction), 52 (General Non-Fiction), 98 (Historical Fiction), 54 (History),
+    /// 55 (Home/Garden), 43 (Horror), 99 (Humor), 84 (Instructional), 44 (Juvenile),
+    /// 56 (Language), 45 (Literary Classics), 57 (Math/Science/Tech), 85 (Medical),
+    /// 87 (Mystery), 119 (Nature), 88 (Philosophy), 58 (Pol/Soc/Relig), 59 (Recreation),
+    /// 46 (Romance), 47 (Science Fiction), 53 (Self-Help), 89 (Travel/Adventure),
+    /// 100 (True Crime), 108 (Urban Fantasy), 48 (Western), 111 (Young Adult).
+    /// Ebooks: 60 (Action/Adventure), 71 (Art), 72 (Biographical), 90 (Business),
+    /// 61 (Comics/Graphic novels), 73 (Computer/Internet), 101 (Crafts), 62 (Crime/Thriller),
+    /// 63 (Fantasy), 107 (Food), 64 (General Fiction), 74 (General Non-Fiction),
+    /// 102 (Historical Fiction), 76 (History), 77 (Home/Garden), 65 (Horror), 103 (Humor),
+    /// 115 (Illusion/Magic), 91 (Instructional), 66 (Juvenile), 78 (Language),
+    /// 67 (Literary Classics), 79 (Magazines/Newspapers), 80 (Math/Science/Tech),
+    /// 92 (Medical), 118 (Mixed Collections), 94 (Mystery), 120 (Nature), 95 (Philosophy),
+    /// 81 (Pol/Soc/Relig), 82 (Recreation), 68 (Romance), 69 (Science Fiction),
+    /// 75 (Self-Help), 96 (Travel/Adventure), 104 (True Crime), 109 (Urban Fantasy),
+    /// 70 (Western), 112 (Young Adult).
+    /// Musicology: 49 (Art), 19 (Guitar/Bass Tabs), 20 (Individual Sheet), 24 (Individual Sheet MP3),
+    /// 22 (Instructional Media), 113 (Lick Library LTP/Jam), 114 (Lick Library Techniques),
+    /// 17 (Music Complete Editions), 26 (Music Book), 27 (Music Book MP3),
+    /// 30 (Sheet Collection), 31 (Sheet Collection MP3), 126 (Instructional Book with Video).
+    /// Radio: 127 (Comedy), 128 (Factual/Documentary), 130 (Drama), 132 (Reading).
     #[serde(default)]
     cat: Option<Vec<u32>>,
 }
