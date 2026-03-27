@@ -87,6 +87,15 @@ struct SearchParams {
     /// Maximum number of results to return (default: 20, max: 100)
     #[serde(default)]
     limit: Option<u32>,
+    /// Sort order. Valid values: titleAsc, titleDesc, sizeAsc, sizeDesc, seedersAsc, seedersDesc,
+    /// leechersAsc, leechersDesc, snatchedAsc, snatchedDesc, dateAsc, dateDesc, random.
+    /// Defaults to relevance.
+    #[serde(default)]
+    sort: Option<String>,
+    /// Filter by main category IDs. Valid values: 13 (AudioBooks), 14 (E-Books),
+    /// 15 (Musicology), 16 (Radio). Omit to search all categories.
+    #[serde(default)]
+    main_cat: Option<Vec<u32>>,
 }
 
 #[derive(Deserialize, schemars::JsonSchema)]
@@ -118,24 +127,27 @@ struct NoParams {}
 impl MamServer {
     /// Search for torrents on MyAnonamouse. Returns a formatted list of matching torrents
     /// including title, authors, narrators, series, size, category, and seeder/leecher counts.
+    /// Supports filtering by main category and sorting by seeders, size, date, and other fields.
     #[tool]
     async fn search_torrents(
         &self,
         Parameters(p): Parameters<SearchParams>,
     ) -> Result<String, String> {
         let limit = p.limit.unwrap_or(20).min(100);
+        let sort_type = p.sort.as_deref().unwrap_or("default");
+        let main_cat: Vec<u32> = p.main_cat.unwrap_or_default();
         let body = serde_json::json!({
             "tor": {
                 "text": p.query,
                 "srchIn": ["title", "author", "narrator"],
                 "searchType": "all",
                 "searchIn": "torrents",
-                "cat": ["0"],
+                "main_cat": main_cat,
                 "browseFlagsHideVsShow": "0",
                 "startDate": "",
                 "endDate": "",
                 "hash": "",
-                "sortType": "default",
+                "sortType": sort_type,
                 "startNumber": "0",
                 "perpage": limit,
             },
