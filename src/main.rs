@@ -19,8 +19,8 @@ struct Cli {
     #[arg(long, default_value = "stdio")]
     transport: Transport,
 
-    /// Bind address for HTTP transport (e.g. 0.0.0.0:8080)
-    #[arg(long, default_value = "0.0.0.0:8080")]
+    /// Bind address for HTTP transport (e.g. 0.0.0.0:8080 to expose on all interfaces)
+    #[arg(long, default_value = "127.0.0.1:8080")]
     http_bind: String,
 
     /// Bearer token required for HTTP transport requests (recommended)
@@ -163,7 +163,6 @@ async fn main() -> anyhow::Result<()> {
                 StreamableHttpService, StreamableHttpServerConfig,
             };
             use rmcp::transport::streamable_http_server::session::local::LocalSessionManager;
-            use tower_http::cors::CorsLayer;
             use tower_http::trace::TraceLayer;
 
             if cli.api_token.is_none() {
@@ -196,7 +195,10 @@ async fn main() -> anyhow::Result<()> {
                             .get(axum::http::header::AUTHORIZATION)
                             .and_then(|v| v.to_str().ok())
                             .and_then(|v| v.strip_prefix("Bearer "))
-                            .map(|t| t == expected)
+                            .map(|t| {
+                                use subtle::ConstantTimeEq;
+                                t.as_bytes().ct_eq(expected.as_bytes()).into()
+                            })
                             .unwrap_or(false);
 
                         if !authorized {
@@ -213,7 +215,6 @@ async fn main() -> anyhow::Result<()> {
             let app = Router::new()
                 .nest_service("/mcp", mcp_service)
                 .layer(auth_middleware)
-                .layer(CorsLayer::permissive())
                 .layer(TraceLayer::new_for_http());
 
             let listener = tokio::net::TcpListener::bind(&cli.http_bind).await?;
