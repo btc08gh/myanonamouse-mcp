@@ -42,9 +42,10 @@ Rust for the code. Cargo for package management and build system.
 
 ## Authentication
 
-MyAnonamouse uses a **session cookie** named `mam_id`. There is no login endpoint or token exchange — the user must obtain the cookie value manually by logging into the site in a browser, then provide it to the server.
+MyAnonamouse uses a **session cookie** named `mam_id`. There is no login endpoint or token exchange — the user must obtain the cookie value from the Security tab of their Preferences on MyAnonamouse and provide it to the server.
 
 - **Supply via:** `--mam-session <value>` CLI arg or `MAM_SESSION` environment variable
+- **How to obtain:** Log into MyAnonamouse, go to Preferences → Security tab, copy the `mam_id` value
 - **Transmission:** Injected as a `Cookie: mam_id=<value>` header on every outbound HTTP request
 - **Headers set on every request:**
   - `Cookie: mam_id=<value>`
@@ -59,13 +60,11 @@ MyAnonamouse uses a **session cookie** named `mam_id`. There is no login endpoin
 MCP Client (Claude Desktop, etc.)
         ↕ MCP (stdio or HTTP/SSE)
   MamServer (src/tools/mod.rs)
-        ↕ Arc<reqwest::Client>
+        ↕ shared HTTP client
   MAM HTTP API (www.myanonamouse.net)
 ```
 
-- `MamServer` holds an `Arc<reqwest::Client>` (pre-configured with the `mam_id` cookie and User-Agent) and a `HashSet<String>` of enabled tool names
-- `MamServer` derives `Clone` (required for HTTP session factory)
-- A single `reqwest::Client` is shared across all tool handlers; it is built once at startup
+A single HTTP client is built once at startup with the `mam_id` cookie and User-Agent pre-configured, then shared across all tool calls. The `MamServer` struct holds this shared client plus the set of enabled tool names, and is cloned per HTTP session when using the HTTP transport.
 
 ## File Structure
 
@@ -74,160 +73,49 @@ MCP Client (Claude Desktop, etc.)
 | `Cargo.toml` | Manifest — dependencies, metadata, binary definition |
 | `Cargo.lock` | Exact dependency versions (kept for binaries) |
 | `src/main.rs` | Entry point — CLI arg parsing, `--list-tools`, `--test-connection`, transport selection, server startup, HTTP auth middleware |
-| `src/mam/mod.rs` | MAM HTTP client — `build_client` (cookie + User-Agent injection), `get_ip_info`, `enrich_error` |
-| `src/tools/mod.rs` | `MamServer` struct + all MCP tool implementations + `ServerHandler` impl |
+| `src/mam/mod.rs` | MAM HTTP client — builds the shared client, `get_ip_info` helper, `enrich_error` with LLM hints |
+| `src/tools/mod.rs` | `MamServer` struct + all MCP tool implementations + server handler |
 | `tests/` | Integration tests |
 | `api-docs/` | MAM API documentation (HTML) |
 
-## Tool Implementation Pattern (rmcp macros)
+## Tool Implementation Pattern
 
-Three procedural macros from `rmcp` drive tool registration:
+Tools are defined as async methods on `MamServer` using three rmcp procedural macros: `#[tool_router]` on the impl block, `#[tool]` on each tool method, and `#[tool_handler]` on the `ServerHandler` impl.
 
-```rust
-// tools/mod.rs
+- Each tool method's doc comment becomes the tool description visible to the LLM — write it as a complete sentence
+- Tool methods always return `Result<String, String>` — the Ok value is the result text sent to the LLM, the Err value is the error text
+- Call `self.tool_gate("tool_name")?` at the top of every tool method to enforce enable/disable filtering
+- Parameters are defined as structs deriving `Deserialize` and `schemars::JsonSchema` — each field's doc comment becomes its JSON Schema description visible to the LLM
+- Optional parameters use `Option<T>`; boolean parameters that default to false use `#[serde(default)]`
 
-#[derive(Clone)]
-pub struct MamServer {
-    client: Arc<reqwest::Client>,
-    enabled_tools: std::collections::HashSet<String>,
-    tool_router: ToolRouter<Self>,
-}
+## CLI Args
 
-#[tool_router]
-impl MamServer {
-    /// Tool description visible to the LLM — write it as a complete sentence.
-    #[tool]
-    async fn my_tool(&self, Parameters(p): Parameters<MyParams>) -> Result<String, String> {
-        self.tool_gate("my_tool")?;
-        // ...
-        Ok(result_string)
-    }
-}
+The server accepts these flags:
 
-#[tool_handler]
-impl ServerHandler for MamServer {
-    fn get_info(&self) -> ServerInfo {
-        ServerInfo::default().with_server_info(Implementation::new(
-            env!("CARGO_PKG_NAME"),
-            env!("CARGO_PKG_VERSION"),
-        ))
-    }
-}
-```
+- `--mam-session` / `MAM_SESSION` env — the `mam_id` session cookie (required)
+- `--enable-tool <PATTERN>` — enable tools matching a substring pattern (min 3 chars); comma-separated or repeated
+- `--disable-tool <PATTERN>` — disable tools matching a pattern; same syntax
+- `--transport` — `stdio` (default) or `http`
+- `--http-bind` — bind address for HTTP transport (default `0.0.0.0:8080`)
+- `--api-token` / `MAM_API_TOKEN` env — Bearer token for HTTP transport authentication
+- `--list-tools` — print all tools and their default state, then exit (no credentials needed)
+- `--test-connection` — verify the session cookie works, then exit
 
-### Parameter structs
-
-```rust
-#[derive(Deserialize, schemars::JsonSchema)]
-struct MyParams {
-    /// Doc comment becomes the JSON Schema description visible to the LLM.
-    required_field: String,
-    /// Optional fields use Option<T>.
-    optional_field: Option<String>,
-    /// Bool fields that default false use #[serde(default)].
-    #[serde(default)]
-    some_flag: bool,
-}
-```
-
-- Tool methods always return `Result<String, String>` — `Ok(String)` is the result text, `Err(String)` is the error returned to the LLM
-- Call `self.tool_gate("tool_name")?` at the top of every tool to enforce enable/disable filtering
-- Append `[Hint: ...]` to error messages where LLM guidance is valuable (e.g. how to recover)
-
-## CLI Args Pattern
-
-```rust
-#[derive(Parser, Debug)]
-#[command(name = "myanonamouse-mcp", about = "MCP server for MyAnonamouse")]
-struct Cli {
-    #[arg(long, env = "MAM_SESSION")]
-    mam_session: String,
-
-    #[arg(long = "enable-tool", alias = "enable-tools", value_name = "PATTERN",
-          value_delimiter = ',', action = clap::ArgAction::Append)]
-    enable: Vec<String>,
-
-    #[arg(long = "disable-tool", alias = "disable-tools", value_name = "PATTERN",
-          value_delimiter = ',', action = clap::ArgAction::Append)]
-    disable: Vec<String>,
-
-    #[arg(long, default_value = "stdio")]
-    transport: Transport,
-
-    #[arg(long, default_value = "0.0.0.0:8080")]
-    http_bind: String,
-
-    #[arg(long, env = "MAM_API_TOKEN")]
-    api_token: Option<String>,
-
-    #[arg(long, default_value_t = false)]
-    list_tools: bool,
-}
-
-#[derive(Debug, Clone, clap::ValueEnum)]
-enum Transport { Stdio, Http }
-```
-
-- `--list-tools` is handled by scanning `std::env::args()` directly before full parsing, so it exits without requiring credentials
-- `--enable-tool`/`--disable-tool` ordering is preserved by a raw args scan (`parse_tool_flags_in_order`) producing `Vec<(bool, String)>`, then `resolve_enabled_tools` applies them with last-wins semantics
+`--list-tools` is processed before clap parses the full args, so it works without `--mam-session`. The `--enable-tool`/`--disable-tool` flags preserve ordering and apply with last-wins semantics.
 
 ## Error Handling
 
-- **`anyhow`** — internal propagation: `Result<T>` with `?`, `bail!()`, `anyhow!()`
-- **`thiserror`** — custom error enums for domain-specific error types
-- Tool methods convert `anyhow::Error` to `String` at the boundary via `.map_err(|e| e.to_string())` or an enrichment function
-- Known error cases get `[Hint: ...]` suffixes so the LLM knows whether/how to recover:
-
-```rust
-fn enrich_mam_error(status: u16, body: &str) -> String {
-    let hint = match status {
-        401 => Some("The mam_id session cookie is invalid or expired. Ask the user to provide a fresh cookie."),
-        429 => Some("Rate limited. Wait before retrying."),
-        _ => None,
-    };
-    match hint {
-        Some(h) => format!("HTTP {status}: {body}\n[Hint: {h}]"),
-        None => format!("HTTP {status}: {body}"),
-    }
-}
-```
+- `anyhow` is used for all internal error propagation
+- `thiserror` is used for any custom error enums
+- Tool methods convert internal errors to plain strings at the boundary
+- Known HTTP error codes get `[Hint: ...]` suffixes appended to their error messages so the LLM knows how to recover — for example, a 401 tells the user to refresh their `mam_id` from Preferences → Security, and a 429 tells the LLM to wait before retrying
 
 ## Logging
 
-```rust
-tracing_subscriber::fmt()
-    .with_writer(std::io::stderr)   // CRITICAL: never stdout — corrupts MCP JSON-RPC framing
-    .with_env_filter(
-        tracing_subscriber::EnvFilter::from_default_env()
-            .add_directive(tracing::Level::INFO.into()),
-    )
-    .init();
-```
+All log output goes to **stderr** via `tracing` — never stdout, which is reserved for MCP JSON-RPC framing. Logs use structured key-value fields rather than inline format strings. Log level defaults to INFO and respects the `RUST_LOG` environment variable. Never use `println!`.
 
-Use structured fields, not format strings in the message:
-```rust
-info!(host = %url, "Starting myanonamouse-mcp");
-warn!(tool = %name, "Tool disabled");
-```
+## Transport
 
-Never use `println!`. All output goes to stderr via `tracing`.
+**Stdio** (default): the server speaks MCP over stdin/stdout. This is the transport used by Claude Desktop.
 
-## Transport Setup
-
-**Stdio (default):**
-```rust
-let service = server.serve(rmcp::transport::stdio()).await?;
-service.waiting().await?;
-```
-
-**HTTP:**
-```rust
-let mcp_service = StreamableHttpService::new(
-    move || Ok(MamServer::new(client.clone(), enabled_tools.clone())),
-    Arc::new(LocalSessionManager::default()),
-    StreamableHttpServerConfig::default(),
-);
-// Mount at /mcp with Bearer token auth middleware, CORS, and tracing layers
-```
-
-MCP endpoint is mounted at `/mcp`. Layers: `TraceLayer` → `CorsLayer::permissive()` → auth middleware → `mcp_service`.
+**HTTP**: the server listens on the configured bind address and exposes the MCP endpoint at `/mcp`. Each connection gets its own `MamServer` instance. Requests are authenticated via a Bearer token if `--api-token` is set. The server applies CORS and HTTP tracing middleware.

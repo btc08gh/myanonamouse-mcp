@@ -26,7 +26,7 @@ const DEFAULT_DISABLED: &[&str] = &[
 #[derive(Parser, Debug)]
 #[command(name = "myanonamouse-mcp", about = "MCP server for MyAnonamouse", version)]
 struct Cli {
-    /// MyAnonamouse session cookie value (mam_id). Obtain from your browser after logging in.
+    /// MyAnonamouse session cookie value (mam_id). Obtain from the Security tab of your Preferences on MyAnonamouse.
     #[arg(long, env = "MAM_SESSION")]
     mam_session: String,
 

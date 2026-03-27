@@ -61,7 +61,7 @@ pub fn enrich_error(status: u16, body: &str) -> String {
     let hint = match status {
         401 | 403 => Some(
             "The mam_id session cookie is invalid or expired. \
-             Ask the user to log into MyAnonamouse in their browser and provide a fresh cookie value.",
+             Ask the user to go to Preferences → Security on MyAnonamouse and provide the updated mam_id value.",
         ),
         429 => Some("Rate limited by MyAnonamouse. Wait before retrying."),
         503 => Some("MyAnonamouse is temporarily unavailable. Try again later."),
