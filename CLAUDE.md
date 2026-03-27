@@ -84,7 +84,6 @@ Tools are defined as async methods on `MamServer` using three rmcp procedural ma
 
 - Each tool method's doc comment becomes the tool description visible to the LLM — write it as a complete sentence
 - Tool methods always return `Result<String, String>` — the Ok value is the result text sent to the LLM, the Err value is the error text
-- Call `self.tool_gate("tool_name")?` at the top of every tool method to enforce enable/disable filtering
 - Parameters are defined as structs deriving `Deserialize` and `schemars::JsonSchema` — each field's doc comment becomes its JSON Schema description visible to the LLM
 - Optional parameters use `Option<T>`; boolean parameters that default to false use `#[serde(default)]`
 
@@ -93,15 +92,10 @@ Tools are defined as async methods on `MamServer` using three rmcp procedural ma
 The server accepts these flags:
 
 - `--mam-session` / `MAM_SESSION` env — the `mam_id` session cookie (required)
-- `--enable-tool <PATTERN>` — enable tools matching a substring pattern (min 3 chars); comma-separated or repeated
-- `--disable-tool <PATTERN>` — disable tools matching a pattern; same syntax
 - `--transport` — `stdio` (default) or `http`
 - `--http-bind` — bind address for HTTP transport (default `0.0.0.0:8080`)
 - `--api-token` / `MAM_API_TOKEN` env — Bearer token for HTTP transport authentication
-- `--list-tools` — print all tools and their default state, then exit (no credentials needed)
 - `--test-connection` — verify the session cookie works, then exit
-
-`--list-tools` is processed before clap parses the full args, so it works without `--mam-session`. The `--enable-tool`/`--disable-tool` flags preserve ordering and apply with last-wins semantics.
 
 ## Error Handling
 

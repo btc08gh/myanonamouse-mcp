@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 use std::sync::Arc;
 
 use rmcp::{
@@ -19,7 +18,6 @@ use serde_json::Value;
 #[derive(Clone)]
 pub struct MamServer {
     client: Arc<reqwest::Client>,
-    enabled_tools: HashSet<String>,
     tool_router: ToolRouter<Self>,
 }
 
@@ -40,10 +38,10 @@ struct TorrentResult {
     title: String,
     catname: Option<String>,
     size: Option<String>,
-    author_info: Option<String>,
-    narrator_info: Option<String>,
-    series_info: Option<String>,
-    tags: Option<String>,
+    author_info: Option<Value>,
+    narrator_info: Option<Value>,
+    series_info: Option<Value>,
+    tags: Option<Value>,
     seeders: Option<u64>,
     leechers: Option<u64>,
     free: Option<u64>,
@@ -125,7 +123,6 @@ impl MamServer {
         &self,
         Parameters(p): Parameters<SearchParams>,
     ) -> Result<String, String> {
-        self.tool_gate("search_torrents")?;
         let limit = p.limit.unwrap_or(20).min(100);
         let body = serde_json::json!({
             "tor": {
@@ -160,10 +157,9 @@ impl MamServer {
             return Err(crate::mam::enrich_error(status.as_u16(), &text));
         }
 
-        let parsed: SearchResponse = resp
-            .json()
-            .await
-            .map_err(|e| format!("Failed to parse search response: {e}"))?;
+        let body = resp.text().await.map_err(|e| format!("Failed to read search response: {e}"))?;
+        let parsed: SearchResponse = serde_json::from_str(&body)
+            .map_err(|e| format!("Failed to parse search response: {e}\nBody: {body}"))?;
 
         Ok(Self::format_search_response(parsed, &p.query))
     }
@@ -175,7 +171,6 @@ impl MamServer {
         &self,
         Parameters(p): Parameters<UserDataParams>,
     ) -> Result<String, String> {
-        self.tool_gate("get_user_data")?;
         let mut query: Vec<(&str, String)> = Vec::new();
         if let Some(id) = p.user_id {
             query.push(("id", id.to_string()));
@@ -213,7 +208,6 @@ impl MamServer {
         &self,
         Parameters(p): Parameters<BonusHistoryParams>,
     ) -> Result<String, String> {
-        self.tool_gate("get_user_bonus_history")?;
         let mut query: Vec<(&str, String)> = Vec::new();
         if let Some(types) = &p.bonus_types {
             query.push(("type", types.join(",")));
@@ -247,7 +241,6 @@ impl MamServer {
     /// Get the current IP address and ASN information as seen by MyAnonamouse.
     #[tool]
     async fn get_ip_info(&self, Parameters(_): Parameters<NoParams>) -> Result<String, String> {
-        self.tool_gate("get_ip_info")?;
         crate::mam::get_ip_info(&self.client)
             .await
             .map(|info| {
@@ -260,13 +253,12 @@ impl MamServer {
     }
 
     /// Register or refresh the current IP as a dynamic seedbox IP on MyAnonamouse.
-    /// Rate limited to once per hour. Disabled by default; enable with --enable-tool=update_seedbox_ip.
+    /// Rate limited to once per hour by MyAnonamouse.
     #[tool]
     async fn update_seedbox_ip(
         &self,
         Parameters(_): Parameters<NoParams>,
     ) -> Result<String, String> {
-        self.tool_gate("update_seedbox_ip")?;
         let resp = self
             .client
             .get(format!("{}/json/dynamicSeedbox.php", crate::mam::BASE_URL))
@@ -315,24 +307,10 @@ impl MamServer {
 // ---------------------------------------------------------------------------
 
 impl MamServer {
-    pub fn new(client: Arc<reqwest::Client>, enabled_tools: HashSet<String>) -> Self {
+    pub fn new(client: Arc<reqwest::Client>) -> Self {
         Self {
             client,
-            enabled_tools,
             tool_router: Self::tool_router(),
-        }
-    }
-
-    fn tool_gate(&self, tool_name: &str) -> Result<(), String> {
-        if self.enabled_tools.contains(tool_name) {
-            Ok(())
-        } else {
-            Err(format!(
-                "Tool '{tool_name}' is disabled. Use --enable-tool={tool_name} to enable it.\n\
-                 [Hint: This tool has been administratively disabled on this server. \
-                 Do not attempt this operation by other means — inform the user that the \
-                 server must be restarted with --enable-tool={tool_name} to allow this action.]"
-            ))
         }
     }
 
@@ -358,34 +336,31 @@ impl MamServer {
                 out.push_str(&format!("   Size:      {size}\n"));
             }
 
-            let authors = t
-                .author_info
-                .as_deref()
+            let authors = t.author_info.as_ref()
+                .and_then(|v| v.as_str())
                 .map(Self::parse_name_map)
                 .unwrap_or_default();
             if !authors.is_empty() {
                 out.push_str(&format!("   Authors:   {}\n", authors.join(", ")));
             }
 
-            let narrators = t
-                .narrator_info
-                .as_deref()
+            let narrators = t.narrator_info.as_ref()
+                .and_then(|v| v.as_str())
                 .map(Self::parse_name_map)
                 .unwrap_or_default();
             if !narrators.is_empty() {
                 out.push_str(&format!("   Narrators: {}\n", narrators.join(", ")));
             }
 
-            let series = t
-                .series_info
-                .as_deref()
+            let series = t.series_info.as_ref()
+                .and_then(|v| v.as_str())
                 .map(Self::parse_series_map)
                 .unwrap_or_default();
             if !series.is_empty() {
                 out.push_str(&format!("   Series:    {}\n", series.join(", ")));
             }
 
-            if let Some(tags) = &t.tags {
+            if let Some(tags) = t.tags.as_ref().and_then(|v| v.as_str()) {
                 if !tags.is_empty() {
                     out.push_str(&format!("   Tags:      {tags}\n"));
                 }
