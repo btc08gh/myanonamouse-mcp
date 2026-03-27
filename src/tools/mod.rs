@@ -31,23 +31,23 @@ pub struct MamServer {
 struct SearchResponse {
     data: Vec<TorrentResult>,
     total: u64,
-    total_found: u64,
+    found: u64,
 }
 
 #[derive(Deserialize)]
 struct TorrentResult {
-    id: Value,
-    name: String,
+    id: u64,
+    title: String,
     catname: Option<String>,
-    size: Option<Value>,
+    size: Option<String>,
     author_info: Option<String>,
     narrator_info: Option<String>,
     series_info: Option<String>,
     tags: Option<String>,
-    seeders: Option<Value>,
-    leechers: Option<Value>,
-    free: Option<Value>,
-    vip: Option<Value>,
+    seeders: Option<u64>,
+    leechers: Option<u64>,
+    free: Option<u64>,
+    vip: Option<u64>,
     added: Option<String>,
     dl: Option<String>,
 }
@@ -250,7 +250,7 @@ impl MamServer {
             .map(|info| {
                 format!(
                     "IP:           {}\nASN:          {}\nOrganization: {}",
-                    info.ip, info.asn, info.as_org
+                    info.ip, info.asn_string(), info.as_org
                 )
             })
             .map_err(|e| e.to_string())
@@ -341,26 +341,18 @@ impl MamServer {
         }
 
         let mut out = format!(
-            "Found {} of {} result(s) for \"{}\"\n",
-            resp.total, resp.total_found, query
+            "Showing {} of {} result(s) for \"{}\"\n",
+            resp.total, resp.found, query
         );
 
         for (i, t) in resp.data.iter().enumerate() {
-            let id = Self::value_as_str(&t.id);
-            let size = t
-                .size
-                .as_ref()
-                .and_then(|v| Self::value_as_u64(v))
-                .map(Self::format_size)
-                .unwrap_or_default();
-
-            out.push_str(&format!("\n{}. {}\n", i + 1, t.name));
+            out.push_str(&format!("\n{}. {}\n", i + 1, t.title));
 
             if let Some(cat) = &t.catname {
-                out.push_str(&format!("   Category: {cat}\n"));
+                out.push_str(&format!("   Category:  {cat}\n"));
             }
-            if !size.is_empty() {
-                out.push_str(&format!("   Size:     {size}\n"));
+            if let Some(size) = &t.size {
+                out.push_str(&format!("   Size:      {size}\n"));
             }
 
             let authors = t
@@ -369,7 +361,7 @@ impl MamServer {
                 .map(Self::parse_name_map)
                 .unwrap_or_default();
             if !authors.is_empty() {
-                out.push_str(&format!("   Authors:  {}\n", authors.join(", ")));
+                out.push_str(&format!("   Authors:   {}\n", authors.join(", ")));
             }
 
             let narrators = t
@@ -378,7 +370,7 @@ impl MamServer {
                 .map(Self::parse_name_map)
                 .unwrap_or_default();
             if !narrators.is_empty() {
-                out.push_str(&format!("   Narrators:{}\n", narrators.join(", ")));
+                out.push_str(&format!("   Narrators: {}\n", narrators.join(", ")));
             }
 
             let series = t
@@ -387,46 +379,42 @@ impl MamServer {
                 .map(Self::parse_series_map)
                 .unwrap_or_default();
             if !series.is_empty() {
-                out.push_str(&format!("   Series:   {}\n", series.join(", ")));
+                out.push_str(&format!("   Series:    {}\n", series.join(", ")));
             }
 
             if let Some(tags) = &t.tags {
                 if !tags.is_empty() {
-                    out.push_str(&format!("   Tags:     {tags}\n"));
+                    out.push_str(&format!("   Tags:      {tags}\n"));
                 }
             }
 
-            let seeders = t.seeders.as_ref().and_then(|v| Self::value_as_u64(v));
-            let leechers = t.leechers.as_ref().and_then(|v| Self::value_as_u64(v));
-            if seeders.is_some() || leechers.is_some() {
+            if t.seeders.is_some() || t.leechers.is_some() {
                 out.push_str(&format!(
-                    "   S/L:      {}/{}\n",
-                    seeders.map_or("-".to_string(), |n| n.to_string()),
-                    leechers.map_or("-".to_string(), |n| n.to_string()),
+                    "   S/L:       {}/{}\n",
+                    t.seeders.map_or("-".to_string(), |n| n.to_string()),
+                    t.leechers.map_or("-".to_string(), |n| n.to_string()),
                 ));
             }
 
-            let is_free = t.free.as_ref().map(Self::value_as_bool).unwrap_or(false);
-            let is_vip = t.vip.as_ref().map(Self::value_as_bool).unwrap_or(false);
+            let is_free = t.free.unwrap_or(0) == 1;
+            let is_vip = t.vip.unwrap_or(0) == 1;
             if is_free || is_vip {
                 let flags: Vec<&str> = [is_free.then_some("Free"), is_vip.then_some("VIP")]
                     .into_iter()
                     .flatten()
                     .collect();
-                out.push_str(&format!("   Flags:    {}\n", flags.join(", ")));
+                out.push_str(&format!("   Flags:     {}\n", flags.join(", ")));
             }
 
             if let Some(added) = &t.added {
-                out.push_str(&format!("   Added:    {added}\n"));
+                out.push_str(&format!("   Added:     {added}\n"));
             }
 
-            if !id.is_empty() {
-                out.push_str(&format!("   ID:       {id}\n"));
-            }
+            out.push_str(&format!("   ID:        {}\n", t.id));
 
             if let Some(dl) = &t.dl {
                 if !dl.is_empty() {
-                    out.push_str(&format!("   DL key:   {dl}\n"));
+                    out.push_str(&format!("   DL key:    {dl}\n"));
                 }
             }
         }
@@ -530,43 +518,11 @@ impl MamServer {
         }
     }
 
-    fn value_as_u64(v: &Value) -> Option<u64> {
-        match v {
-            Value::Number(n) => n.as_u64(),
-            Value::String(s) => s.parse().ok(),
-            _ => None,
-        }
-    }
-
     fn value_as_i64(v: &Value) -> i64 {
         match v {
             Value::Number(n) => n.as_i64().unwrap_or(0),
             Value::String(s) => s.parse().unwrap_or(0),
             _ => 0,
-        }
-    }
-
-    fn value_as_bool(v: &Value) -> bool {
-        match v {
-            Value::Bool(b) => *b,
-            Value::Number(n) => n.as_u64() == Some(1),
-            Value::String(s) => s == "1" || s.eq_ignore_ascii_case("true"),
-            _ => false,
-        }
-    }
-
-    fn format_size(bytes: u64) -> String {
-        const GIB: u64 = 1 << 30;
-        const MIB: u64 = 1 << 20;
-        const KIB: u64 = 1 << 10;
-        if bytes >= GIB {
-            format!("{:.2} GB", bytes as f64 / GIB as f64)
-        } else if bytes >= MIB {
-            format!("{:.1} MB", bytes as f64 / MIB as f64)
-        } else if bytes >= KIB {
-            format!("{:.0} KB", bytes as f64 / KIB as f64)
-        } else {
-            format!("{bytes} B")
         }
     }
 
@@ -583,7 +539,8 @@ impl MamServer {
         names
     }
 
-    /// Parse a JSON-encoded map of `{ "id": ["series name", "position"] }` into display strings.
+    /// Parse a JSON-encoded map of `{ "id": ["series name", "pos_str", pos_float] }` into display strings.
+    /// pos_float of -1.0 means no position specified.
     fn parse_series_map(json_str: &str) -> Vec<String> {
         let Ok(map) = serde_json::from_str::<serde_json::Map<String, Value>>(json_str) else {
             return vec![];
@@ -593,7 +550,16 @@ impl MamServer {
             .filter_map(|v| {
                 let arr = v.as_array()?;
                 let name = arr.first()?.as_str()?;
-                let pos = arr.get(1).and_then(|p| p.as_str()).unwrap_or("");
+                // pos_str is element 1, pos_float is element 2 (-1.0 = unspecified)
+                let pos_str = arr.get(1).and_then(|p| p.as_str()).unwrap_or("");
+                let pos_float = arr.get(2).and_then(|p| p.as_f64()).unwrap_or(-1.0);
+                let pos = if !pos_str.is_empty() {
+                    pos_str.to_string()
+                } else if pos_float >= 0.0 {
+                    pos_float.to_string()
+                } else {
+                    String::new()
+                };
                 if pos.is_empty() {
                     Some(name.to_string())
                 } else {

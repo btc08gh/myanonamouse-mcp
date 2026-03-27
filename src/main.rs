@@ -194,7 +194,7 @@ async fn main() -> anyhow::Result<()> {
 
     if cli.test_connection {
         let ip_info = mam::get_ip_info(&client).await?;
-        eprintln!("Connection OK. IP: {}, ASN: {}", ip_info.ip, ip_info.asn);
+        eprintln!("Connection OK. IP: {}, ASN: {}", ip_info.ip, ip_info.asn_string());
         return Ok(());
     }
 

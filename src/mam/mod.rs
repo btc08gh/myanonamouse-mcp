@@ -23,9 +23,19 @@ pub fn build_client(mam_session: &str) -> anyhow::Result<reqwest::Client> {
 pub struct IpInfo {
     pub ip: String,
     #[serde(rename = "ASN")]
-    pub asn: String,
+    pub asn: serde_json::Value,
     #[serde(rename = "AS")]
     pub as_org: String,
+}
+
+impl IpInfo {
+    pub fn asn_string(&self) -> String {
+        match &self.asn {
+            serde_json::Value::Number(n) => n.to_string(),
+            serde_json::Value::String(s) => s.clone(),
+            _ => String::new(),
+        }
+    }
 }
 
 /// Fetch current IP info — used by `--test-connection` and the `get_ip_info` tool.
@@ -36,12 +46,14 @@ pub async fn get_ip_info(client: &reqwest::Client) -> anyhow::Result<IpInfo> {
         .await?;
 
     let status = resp.status();
+    let body = resp.text().await.unwrap_or_default();
+
     if !status.is_success() {
-        let body = resp.text().await.unwrap_or_default();
         return Err(anyhow!(enrich_error(status.as_u16(), &body)));
     }
 
-    resp.json::<IpInfo>().await.map_err(|e| anyhow!("Failed to parse IP info response: {e}"))
+    serde_json::from_str::<IpInfo>(&body)
+        .map_err(|e| anyhow!("Failed to parse IP info response: {e}\nBody: {body}"))
 }
 
 /// Produce a human-readable error string for MAM HTTP errors, with LLM hints where useful.
