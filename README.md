@@ -70,7 +70,7 @@ Add the server to your Claude Desktop configuration file.
 }
 ```
 
-Using an environment variable instead (recommended — avoids storing the cookie in the config file):
+Using an environment variable instead (recommended — keeps the cookie out of the process listing):
 
 ```json
 {
@@ -105,7 +105,16 @@ Run `myanonamouse-mcp --list-tools` to see all tools with their current default 
 | `get_user_bonus_history` | — | Bonus point transaction history |
 | `update_seedbox_ip` | — | Register current IP as dynamic seedbox IP |
 
-### Enabling optional tool groups
+### Tool groups
+
+Tools are organised into groups to keep the default token footprint small. Enable only what you need.
+
+| Group | Flag | Tools | When to use |
+|---|---|---|---|
+| default | _(on by default)_ | `search_audiobooks`, `search_ebooks`, `search_music`, `search_radio`, `get_torrent_details`, `get_ip_info` | Always available — read-only browsing and search |
+| power | `--enable-power-tools` | `search_torrents`, `list_categories` | Cross-category search using raw numeric IDs; useful when the per-category tools aren't flexible enough |
+| user | `--enable-user-tools` | `get_user_data`, `get_user_bonus_history` | Access to your account stats, ratio, and bonus point history |
+| seedbox | `--enable-seedbox` | `update_seedbox_ip` | Registers your current IP as a dynamic seedbox IP on MAM |
 
 ```bash
 # Enable the cross-category power search tools
@@ -124,7 +133,7 @@ myanonamouse-mcp --mam-session <id> --enable-tool=get_user_data
 myanonamouse-mcp --mam-session <id> --disable-tool=search_audiobooks --disable-tool=search_music --disable-tool=search_radio
 ```
 
-`--disable-tool` always wins over group and individual enable flags.
+`--disable-tool` always wins over group and individual enable flags, regardless of the order flags appear on the command line.
 
 ## HTTP transport
 
