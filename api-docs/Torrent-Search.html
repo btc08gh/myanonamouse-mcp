@@ -1,0 +1,562 @@
+<html>
+    <body>
+        <div class="blockBodyCon left">
+            <h1>Torrent Search (JSON)</h1>
+            <h2>URI: /tor/js/loadSearchJSONbasic.php</h2>
+            <br />
+            <h3>Search torrents</h3>
+            <br />main site search, returning json results (instead of html).
+            This endpoint can accept input via post as application/xml,
+            application/json, multipart/form-data, or
+            application/x-www-form-urlencoded, as well as via get<br /><br />
+            <table class="Parameters">
+                <thead>
+                    <tr>
+                        <th style="width: 200px">Parameter</th>
+                        <th>Data type</th>
+                        <th>Additional information</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="alternateColor">
+                        <td>description</td>
+                        <td>empty</td>
+                        <td>
+                            If this parameter is set, it will display the full
+                            description field for the torrent.
+                        </td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td>dlLink</td>
+                        <td>blank</td>
+                        <td>
+                            show hash for dl link (prepend
+                            https://www.myanonamouse.net/tor/download.php/ to
+                            use) for downloading on something without a session
+                            cookie. Alternatively use session cookie and just
+                            hit
+                            https://www.myanonamouse.net/tor/download.php?tid=#
+                            replacing # with the id number.
+                        </td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td>isbn</td>
+                        <td>Set</td>
+                        <td>
+                            If this value is set, will return the isbn field
+                            (though often blank).
+                        </td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td>mediaInfo</td>
+                        <td>set</td>
+                        <td>When set, returns the key parts of mediaInfo</td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td>my_snatched</td>
+                        <td>Exists</td>
+                        <td>
+                            If set, limits returned results only to what you
+                            have snatched
+                        </td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td>perpage</td>
+                        <td>int</td>
+                        <td>
+                            int in range of 5 to 1000, telling how many results
+                            to return
+                        </td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td>tor</td>
+                        <td>array</td>
+                        <td><h3 class="required">REQUIRED</h3></td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td class="indent1">browse_lang</td>
+                        <td>list</td>
+                        <td>
+                            List of integers for the languages you wish to view
+                            in results
+                        </td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td class="indent1">cat</td>
+                        <td>list</td>
+                        <td>
+                            List of integers for the categories you wish to view
+                            in results
+                        </td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td class="indent1">endDate</td>
+                        <td>date</td>
+                        <td>
+                            Date in format YYYY-MM-DD or unix timestamp torrents
+                            shoujld have been created before. Exclusive of value
+                            provided
+                        </td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td class="indent1">hash</td>
+                        <td>HEX string</td>
+                        <td>Hexadecimal encoded hash from a torrent</td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td class="indent1">id</td>
+                        <td>int</td>
+                        <td>Will return only a single ID's data</td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td class="indent1">main_cat</td>
+                        <td>array</td>
+                        <td>
+                            Array of ID(s) of the main category to include. IDs
+                            are:<br />
+                            13 AudioBooks<br />
+                            14 E-Books<br />
+                            15 Musicology<br />
+                            16 Radio
+                        </td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td class="indent1">searchIn</td>
+                        <td>Enum</td>
+                        <td>list to come</td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td class="indent1">searchType</td>
+                        <td>enum</td>
+                        <td>
+                            'all': Search everything<br />
+                            'active': Last update had 1+ seeders<br />
+                            'inactive': Last update has 0 seeders<br />
+                            'fl': Freeleech torrents<br />
+                            'fl-VIP': Freeleech or VIP torrents<br />
+                            'VIP': VIP torrents<br />
+                            'nVIP': Torrents not VIP<br />
+                            'nMeta': Torrents missing meta data (old torrents)
+                        </td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td class="indent1">sortType</td>
+                        <td>enum</td>
+                        <td>
+                            'titleAsc': By the Title, Descending order<br />
+                            'titleDesc': By the Title, Ascending order<br />
+                            'fileAsc': By number of files, Ascending Order<br />
+                            'fileDesc': By number of files, Descending Order<br />
+                            'sizeAsc': By size of the torrent, Ascending
+                            Order<br />
+                            'sizeDesc': By size of the torrent, Descending
+                            Order<br />
+                            'seedersAsc': By number of Seeders, Ascending
+                            Order<br />
+                            'seedersDesc': By number of Seeders, Descending
+                            Order<br />
+                            'leechersAsc': By number of Leechers, Ascending
+                            Order<br />
+                            'leechersDesc': By number of Leechers, Descending
+                            Order<br />
+                            'snatchedAsc': By number of times snatched,
+                            Ascending Order<br />
+                            'snatchedDesc': By number of times snatched,
+                            Descending Order<br />
+                            'dateAsc': By Date Added, Ascending Order<br />
+                            'dateDesc': By Date Added, Descending Order<br />
+                            'bmkaAsc': By date bookmarked, Ascending Order
+                            (Note: may return odd results if not bookmarked)<br />
+                            'bmkaDesc': By date bookmarked, Descending Order
+                            (Note: may return odd results if not bookmarked)<br />
+                            'reseedAsc': Date Reseed Request Added, Ascending
+                            Order (Note: may return odd results if no reseed
+                            request)<br />
+                            'reseedDesc': Date Reseed Request Added, Descending
+                            Order (Note: may return odd results if no reseed
+                            request)<br />
+                            'categoryAsc': Sorted by category (number)
+                            Ascending, followed by title Ascending<br />
+                            'categoryDesc': Sorted by category (number)
+                            Descending, followed by title Ascending<br />
+                            'random': random, duh<br />
+                            'default':<br />
+                            If text search present: by weight DESC, then ID
+                            desceding,<br />
+                            else if instead searchIn is 'myReseed' or
+                            'allReseed': same as reseedAsc<br />
+                            else if searchIn is Bookmarks: same as 'bmkaDesc'<br />
+                            else same as 'dateDesc'
+                        </td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td class="indent1">srchIn</td>
+                        <td>array</td>
+                        <td></td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td class="indent2">author</td>
+                        <td>Set</td>
+                        <td>
+                            If set, will cause the tor[text] to search in the
+                            author
+                        </td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td class="indent2">description</td>
+                        <td>Set</td>
+                        <td>
+                            If set, will cause the tor[text] to search in the
+                            description
+                        </td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td class="indent2">filenames</td>
+                        <td>Set</td>
+                        <td>
+                            If set, will cause the tor[text] to search in the
+                            filenames
+                        </td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td class="indent2">fileTypes</td>
+                        <td>Set</td>
+                        <td>
+                            If set, will cause the tor[text] to search in the
+                            file types
+                        </td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td class="indent2">narrator</td>
+                        <td>Set</td>
+                        <td>
+                            If set, will cause the tor[text] to search in the
+                            narrator
+                        </td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td class="indent2">series</td>
+                        <td>Set</td>
+                        <td>
+                            If set, will cause the tor[text] to search in the
+                            series
+                        </td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td class="indent2">tags</td>
+                        <td>Set</td>
+                        <td>
+                            If set, will cause the tor[text] to search in the
+                            tags
+                        </td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td class="indent2">title</td>
+                        <td>Set</td>
+                        <td>
+                            If set, will cause the tor[text] to search in the
+                            title
+                        </td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td class="indent1">startDate</td>
+                        <td>date</td>
+                        <td>
+                            Date in format YYYY-MM-DD or unix timestamp of
+                            earliest torrent(s) to show. Inclusive of the
+                            provided value
+                        </td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td class="indent1">startNumber</td>
+                        <td>Int</td>
+                        <td>Number of entries to skip. Used in pagination.</td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td class="indent1">text</td>
+                        <td>text</td>
+                        <td>Text to search for.</td>
+                    </tr>
+                </tbody>
+            </table>
+            <br /><br />
+            <h3>Example input</h3>
+            <pre>
+application/x-www-form-urlencoded:
+tor%5Bcat%5D%5B%5D=0&amp;tor%5BsortType%5D=default&amp;tor%5BbrowseStart%5D=true&amp;tor%5BstartNumber%5D=0&amp;bannerLink&amp;bookmarks&amp;dlLink&amp;description&amp;tor%5Btext%5D=mp3%20m4a
+
+JSON:
+
+{
+	"tor": {
+		"text": "collection cookbooks food test kitchen",
+		"srchIn": [
+			"title",
+			"author",
+			"narrator"
+		],
+		"searchType": "all",
+		"searchIn": "torrents",
+		"cat": ["0"],
+		"browseFlagsHideVsShow": "0",
+		"startDate": "",
+		"endDate": "",
+		"hash": "",
+		"sortType": "default",
+		"startNumber": "0"
+	},
+	"thumbnail": "true"
+}</pre
+            >
+            <br /><br />
+            <h3>Output Parameters</h3>
+            <table class="Parameters">
+                <thead>
+                    <tr>
+                        <th style="width: 200px">Parameter</th>
+                        <th>Data type</th>
+                        <th>Additional information</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="alternateColor">
+                        <td>data</td>
+                        <td>List</td>
+                        <td>
+                            This is a list of objects/arrays with the following
+                            keys
+                        </td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td class="indent1">added</td>
+                        <td>datetime</td>
+                        <td>
+                            the date and time (in utc) the item was uploaded to
+                            site
+                        </td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td class="indent1">author_info</td>
+                        <td>string</td>
+                        <td>json object of id:name pairs</td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td class="indent1">bookmarked</td>
+                        <td>datetime (nullable)</td>
+                        <td>
+                            Datetime of when an item was bookmarked by the user
+                            (or null if not bookmarked)
+                        </td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td class="indent1">browseflags</td>
+                        <td>bitfield</td>
+                        <td>
+                            bit field of the different tags and flags on a
+                            torrent see [link pending] for more information
+                        </td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td class="indent1">cat</td>
+                        <td>string</td>
+                        <td>
+                            the html display for the category based on the users
+                            preferences
+                        </td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td class="indent1">category</td>
+                        <td>int</td>
+                        <td>specific category id the item is in</td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td class="indent1">catname</td>
+                        <td>string</td>
+                        <td>the category the item is in</td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td class="indent1">comments</td>
+                        <td>int</td>
+                        <td>number of comments users have added to the item</td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td class="indent1">dl</td>
+                        <td>string</td>
+                        <td>
+                            user specific hash to download the torrent file. You
+                            can download by appending it to the url:
+                            /tor/download.php/
+                        </td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td class="indent1">filetypes</td>
+                        <td>string</td>
+                        <td>concatenated string of file types</td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td class="indent1">fl_vip</td>
+                        <td>boolean</td>
+                        <td>if the item is freeleech and/or vip</td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td class="indent1">free</td>
+                        <td>boolean</td>
+                        <td>if the item is freeleech or not</td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td class="indent1">id</td>
+                        <td>int</td>
+                        <td>
+                            the id of the torrent itself. User can pull up the
+                            page via /t/{id}
+                        </td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td class="indent1">lang_code</td>
+                        <td>string</td>
+                        <td>the 3 letter ISO code for the language</td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td class="indent1">language</td>
+                        <td>int</td>
+                        <td>the internal int for the language</td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td class="indent1">leechers</td>
+                        <td>int</td>
+                        <td>number of leechers</td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td class="indent1">main_cat</td>
+                        <td>int</td>
+                        <td>
+                            the main category id this is in.<br />
+                            13 = AudioBooks<br />
+                            14 = E-Books<br />
+                            15 = Musicology<br />
+                            16 = Radio
+                        </td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td class="indent1">my_snatched</td>
+                        <td>boolean</td>
+                        <td>
+                            Whether or not you have snatched this torrent
+                            before. Note 5 to 20 min delay on updating.
+                        </td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td class="indent1">narrator_info</td>
+                        <td>string</td>
+                        <td>json object of id:name pairs</td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td class="indent1">numfiles</td>
+                        <td>int</td>
+                        <td>number of files in the torrent</td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td class="indent1">owner</td>
+                        <td>int</td>
+                        <td>userid of the uploader</td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td class="indent1">owner_name</td>
+                        <td>string</td>
+                        <td>username of the uploader</td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td class="indent1">personal_freeleech</td>
+                        <td>boolean</td>
+                        <td>
+                            Whether or not you have bought a torrent as a
+                            personal freeleech. Note 5 to 20 min delay on
+                            updating.
+                        </td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td class="indent1">seeders</td>
+                        <td>int</td>
+                        <td>number of seeders</td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td class="indent1">series_info</td>
+                        <td>string</td>
+                        <td>json object of id:name pairs</td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td class="indent1">size</td>
+                        <td>string</td>
+                        <td>Size of the torrent</td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td class="indent1">tags</td>
+                        <td>string</td>
+                        <td></td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td class="indent1">times_completed</td>
+                        <td>int</td>
+                        <td>
+                            number of users who have fully snatched the torrent
+                        </td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td class="indent1">title</td>
+                        <td>string</td>
+                        <td></td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td class="indent1">vip</td>
+                        <td>boolean</td>
+                        <td>if the item is vip or not</td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td>total</td>
+                        <td>int</td>
+                        <td>
+                            the number of results the server loaded for your
+                            search. Automatically expands as you ask for later
+                            results
+                        </td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td>total_found</td>
+                        <td>int</td>
+                        <td>Total results found</td>
+                    </tr>
+                </tbody>
+            </table>
+            <br /><br />
+            <h3>Example output</h3>
+            <pre>
+{
+    "data": [
+        {
+            "id": "273200",
+            "language": "1",
+            "main_cat": "13",
+            "category": "108",
+            "catname": "Audiobooks - Urban Fantasy",
+            "size": "6324306932",
+            "numfiles": "149",
+            "vip": "0",
+            "free": "0",
+            "fl_vip": "0",
+            "name": "Love at Stake series",
+            "w": "5527",
+            "tags": "Love at Stake series unabridged 64–128 Kbps Fiction Paranormal Romance Fantasy Vampires Bestseller mp3 m4a",
+            "author_info": "{\"8234\": \"Kerrelyn Sparks\"}",
+            "narrator_info": "{\"1\": \"Abby Craden\", \"1220\": \"Deanna Hurst\", \"13716\": \"Lorna Bennett\", \"1481\": \"P J Ochlan\", \"1499\": \"Suzanne Cypress\", \"1948\": \"Chloe Campbell\", \"2168\": \"Paula Costello\", \"3408\": \"Gia St Claire\", \"348\": \"Amy Rubinate\", \"356\": \"Therese Plummer\", \"3665\": \"Nicol Zanzarella\", \"3689\": \"Brianna Bronte\", \"3919\": \"Enrique Morales\", \"500\": \"Gabra Zackman\", \"52\": \"Coleen Marlo\", \"7388\": \"Aimee Castle\", \"7389\": \"Donna Rawlins\", \"7390\": \"Jennifer Bradshaw\"}",
+            "series_info": "{\"67\": [\"Love at Stake\", \"01-16, 13.5\"]}",
+            "filetype": "m4a mp3",
+            "description": "[size=4][b]Love at Stake - Books 1–16 &amp; 13.5 (Unabridged) - 64–128 Kbps[\/b][\/size]\r\n\r\nWelcome to the dangerous—and hilarious—world of modern day vampires. There are vampire cable channels, a celebrity magazine called Live with the Undead, and just like the living, vampires have dental emergencies. That’s how dentist Shanna Whelan, a mortal female, meets the smolderingly undead Roman Draganesti, and finds her life turning absolutely batty…\r\n\r\n[b]In the series:[\/b]\r\n\r\n[*] 01. How To Marry a Millionaire Vampire - Narrated by Suzanne Cypress - 11h35m, MP3\r\n\r\n[*] 02. Vamps and the City - Narrated by Abby Craden - 11h34m, MP3\r\n\r\n[*] 03. Be Still My Vampire Heart - Narrated by Donna Rawlins - 10h4m, MP3\r\n\r\n[*] 04. The Undead Next Door - Narrated by Deanna Hurst - 13h4m, M4A\r\n\r\n[*] 05. All I Want for Christmas Is a Vampire - Narrated by Coleen Marlo - 10h30m, M4A\r\n\r\n[*] 06. Secret Life of a Vampire - Narrated by Jennifer Bradshaw - 11h9m, MP3\r\n\r\n[*] 07. Forbidden Nights with a Vampire - Narrated by Chloe Campbell - 9h32m, MP3\r\n\r\n[*] 08. The Vampire and the Virgin - Narrated by Therese Plummer - 10h29m, MP3\r\n\r\n[*] 09. Eat Prey Love - Narrated by Gia St. Claire - 10h7m, MP3\r\n\r\n[*] 10. Vampire Mine - Narrated by Gabra Zackman - 10h, MP3\r\n\r\n[*] 11. Sexiest Vampire Alive - Narrated by Aimee Castle - 10h27m, MP3\r\n\r\n[*] 12. Wanted: Undead or Alive - Narrated by P. J. Ochlan - 9h30m, MP3\r\n\r\n[*] 13. Wild About You - Narrated by Nicol Zanzarella - 9h39m, MP3\r\n\r\n[*] 13.5. Vampires Gone Wild - Narrated by Brianna Bronte &amp; Lorna Bennett - 8 hrs, MP3\r\n\r\n[*] 14. The Vampire with the Dragon Tattoo - Narrated by Paula Costello - 9h46m, MP3\r\n\r\n[*] 15. How to Seduce a Vampire (Without Really Trying) - Narrated by Amy Rubinate - 10h24m, MP3\r\n\r\n[*] 16. Crouching Tiger, Forbidden Vampire - Narrated by Enrique Morales - 9h2m, MP3\r\n\r\n[b]Author's Website:[\/b] http:\/\/www.kerrelynsparks.com\/booklist.html",
+            "dl": "k0S0Bxpdds1Q1vAvRI,ILhtA5UvR,qwPautWQCqh6,GDUeuCP8S6QMAoc9chznWSNGqfHeQLrTGnusk8K65qjJtAV1r9NmkM1KxxHOMdZFHXXC2BFzq7f66zTsIC2DfgBKyrcGsj2lus5jNQrM17zuvqoe3FA1cyunFiejvXmYF1K3s0n,AOdQ==",
+            "bookmarked": null
+        },
+        ...
+}</pre
+            >
+        </div>
+    </body>
+</html>

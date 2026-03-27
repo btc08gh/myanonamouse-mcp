@@ -1,0 +1,177 @@
+<html>
+    <body>
+        <div class="blockBodyCon left">
+            <h1>JSON fast fillout</h1>
+            <h3>json string for upload/request form filling</h3>
+            This is the specifications for the json object used to fill the form
+            for making a new request, or the torrent upload page.<br />
+            <br />
+            Leave off any fields you don't need/want to fill out.<br /><br />
+            <table class="Parameters">
+                <thead>
+                    <tr>
+                        <th style="width: 200px">Parameter</th>
+                        <th>Data type</th>
+                        <th>Additional information</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="alternateColor">
+                        <td>authors</td>
+                        <td>list</td>
+                        <td>List of strings of author names</td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td>categories</td>
+                        <td>list</td>
+                        <td>
+                            List of category numbers (newer multi category).<br />
+                            <br />
+                            See:
+                            https://www.myanonamouse.net/tor/json/categories.php?new
+                        </td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td>category</td>
+                        <td>string or int</td>
+                        <td>the string name or int id of the category</td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td>description</td>
+                        <td>string</td>
+                        <td>
+                            The string for the description. For requests this is
+                            the "book description"
+                        </td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td>flags</td>
+                        <td>list of strings</td>
+                        <td>
+                            List of the flags to check off. As of writing, you
+                            can use:<br />
+                            <ul>
+                                <li>"cLang" for Crude Language</li>
+                                <li>"vio" for violence</li>
+                                <li>"sSex" for Some Explicit Sexual Content</li>
+                                <li>"eSex" for Explicit Sexual Content</li>
+                                <li>"abridged" for Abridged content</li>
+                                <li>"lgbt" for LGBTQ+ themed content</li>
+                            </ul>
+                        </td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td>isbn</td>
+                        <td>string</td>
+                        <td>Fills in the ISBN field.</td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td>language</td>
+                        <td>string or int</td>
+                        <td>The name or int id of the language</td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td>main_cat</td>
+                        <td>int</td>
+                        <td>
+                            Whether the item is:<br />
+                            1 =&gt; Fiction<br />
+                            2 =&gt; Non-Fiction
+                        </td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td>mediaInfo</td>
+                        <td>string</td>
+                        <td>
+                            the mediaInfo for the audio component of a torrent.
+                        </td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td>mediaType</td>
+                        <td>int</td>
+                        <td>
+                            The int for which media type the torrent is.<br />
+                            <br />
+                            See:
+                            https://www.myanonamouse.net/tor/json/categories.php?new
+                        </td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td>narrator</td>
+                        <td>list</td>
+                        <td>list strings of narrator names.</td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td>series</td>
+                        <td>list</td>
+                        <td>list of objects with the following keys</td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td class="indent1">name</td>
+                        <td>string</td>
+                        <td>name of the series</td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td class="indent1">number</td>
+                        <td>string</td>
+                        <td>the number(s) in the series included</td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td>subtitle</td>
+                        <td>string</td>
+                        <td>subtitle of the book</td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td>tags</td>
+                        <td>string</td>
+                        <td>string to put into the tags</td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td>thumbnail</td>
+                        <td>string</td>
+                        <td>url for the image to be used as the poster</td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td>title</td>
+                        <td>string</td>
+                        <td>string of the title of the item</td>
+                    </tr>
+                </tbody>
+            </table>
+            <br /><br />
+            <h3>Example input</h3>
+            <pre>
+{
+         "title": "Torrent title goes here",
+         "authors":
+           [
+             "author #1",
+             "author #2"
+           ],
+         "narrators":
+           [
+             "narrator #1",
+             "narrator #2"
+           ],
+         "tags": "Tags &amp; Labels go here",
+         "description": "Torrent description goes here",
+         "series":
+           [
+             {
+               "name": "First series name goes here",
+               "number": 3
+             },
+             {
+               "name": "Second series name goes here",
+               "number": "1-3"
+             }
+           ],
+         "subtitle": "Torrent subtitle goes here",
+         "thumbnail": "URL for the poster image goes here",
+         "language": "French",
+         "category": "Ebooks - Art"
+        }</pre
+            >
+        </div>
+    </body>
+</html>

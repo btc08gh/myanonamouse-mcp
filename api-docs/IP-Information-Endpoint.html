@@ -1,0 +1,45 @@
+<html>
+    <body>
+        <div class="blockBodyCon left">
+            <h1>IP information endpoint</h1>
+            <h2>URI: /json/jsonIp.php</h2>
+            <br />
+            <h3>Endpoint to get your current IP, ASN, and AS organization.</h3>
+            <br />Endpoint is available on www.myanonamouse.net, as well as
+            t.myanonamouse.net<br /><br /><br /><br />
+            <h3>Example input</h3>
+            <pre></pre>
+            <br /><br />
+            <h3>Output Parameters</h3>
+            <table class="Parameters">
+                <thead>
+                    <tr>
+                        <th style="width: 200px">Parameter</th>
+                        <th>Data type</th>
+                        <th>Additional information</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="alternateColor">
+                        <td>AS</td>
+                        <td>string</td>
+                        <td>AS Organization name</td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td>ASN</td>
+                        <td>int</td>
+                        <td>ASN of the origin of the request</td>
+                    </tr>
+                    <tr class="alternateColor">
+                        <td>ip</td>
+                        <td>string</td>
+                        <td>Current IP address used to request the endpoint</td>
+                    </tr>
+                </tbody>
+            </table>
+            <br /><br />
+            <h3>Example output</h3>
+            <pre>{"ip":"a.b.c.d","ASN":123,"AS":"Some Provider Here"}</pre>
+        </div>
+    </body>
+</html>
