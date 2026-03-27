@@ -27,8 +27,7 @@ struct Cli {
     #[arg(long, env = "MAM_API_TOKEN")]
     api_token: Option<String>,
 
-    /// Enable the search_torrents (full-parameter power search) and get_torrent_details tools.
-    /// These are on by default until per-category friendly search tools are added.
+    /// Enable the search_torrents (full cross-category power search) and list_categories tools.
     #[arg(long, default_value_t = false)]
     enable_power_tools: bool,
 

@@ -73,11 +73,11 @@ A single HTTP client is built once at startup with the `mam_id` cookie and User-
 |---|---|
 | `Cargo.toml` | Manifest — dependencies, metadata, binary definition |
 | `Cargo.lock` | Exact dependency versions (kept for binaries) |
-| `src/main.rs` | Entry point — CLI arg parsing, `--list-tools`, `--test-connection`, transport selection, server startup, HTTP auth middleware |
+| `src/main.rs` | Entry point — CLI arg parsing, tool-enable/disable flag processing, transport selection, server startup, HTTP auth middleware |
 | `src/mam/mod.rs` | MAM HTTP client — builds the shared client, `get_ip_info` helper, `enrich_error` with LLM hints |
-| `src/tools/mod.rs` | `MamServer` struct + all MCP tool implementations + server handler |
+| `src/tools/mod.rs` | `MamServer` struct + all MCP tool implementations + genre/language/sort lookup tables + server handler |
 | `tests/` | Integration tests |
-| `api-docs/` | MAM API documentation (HTML) |
+| `api-docs/` | MAM API documentation (HTML); `Search-Form-HTML-fragment.html` is the primary source for search parameter names and category/language IDs |
 
 ## Tool Implementation Pattern
 
@@ -88,14 +88,46 @@ Tools are defined as async methods on `MamServer` using three rmcp procedural ma
 - Parameters are defined as structs deriving `Deserialize` and `schemars::JsonSchema` — each field's doc comment becomes its JSON Schema description visible to the LLM
 - Optional parameters use `Option<T>`; boolean parameters that default to false use `#[serde(default)]`
 
+## Tools
+
+Tools are grouped by opt-in flag. The default set is lean to minimise LLM token usage.
+
+| Tool | Group | Default | Description |
+|---|---|---|---|
+| `search_audiobooks` | default | ✓ | Search audiobooks by query, genre name, language name |
+| `search_ebooks` | default | ✓ | Search ebooks by query, genre name, language name |
+| `search_music` | default | ✓ | Search musicology content by query, genre name |
+| `search_radio` | default | ✓ | Search radio content by query, genre name |
+| `get_torrent_details` | default | ✓ | Full details for one torrent by ID or hash |
+| `get_ip_info` | default | ✓ | Current IP and ASN as seen by MAM |
+| `search_torrents` | power | — | Cross-category power search with raw category/language IDs |
+| `list_categories` | power | — | Returns full category/subcategory ID table for `search_torrents` |
+| `get_user_data` | user | — | User profile — stats, ratio, notifications |
+| `get_user_bonus_history` | user | — | Bonus point transaction history |
+| `update_seedbox_ip` | seedbox | — | Register current IP as dynamic seedbox IP |
+
+### Tool design
+
+- Friendly search tools accept genre and language as plain strings; the server maps them to numeric IDs internally via fuzzy lookup tables in `src/tools/mod.rs`.
+- Sort order is accepted as natural language ("newest", "most seeders", "title a-z") or raw API strings ("dateDesc", "seedersDesc") via `parse_sort()`.
+- All search tools support `limit` (default 20, max 100) and `offset` for pagination.
+- `TOOL_REGISTRY` in `src/tools/mod.rs` is the single source of truth for tool names, groups, and defaults. `--list-tools` reads it directly.
+- Disabled tools are removed from the `ToolRouter` at startup via `remove_route()` so they are invisible to the LLM and consume no token budget.
+
 ## CLI Args
 
 The server accepts these flags:
 
-- `--mam-session` / `MAM_SESSION` env — the `mam_id` session cookie (required)
+- `--mam-session` / `MAM_SESSION` env — the `mam_id` session cookie (required unless `--list-tools`)
 - `--transport` — `stdio` (default) or `http`
 - `--http-bind` — bind address for HTTP transport (default `0.0.0.0:8080`)
 - `--api-token` / `MAM_API_TOKEN` env — Bearer token for HTTP transport authentication
+- `--enable-power-tools` — enable `search_torrents` + `list_categories`
+- `--enable-user-tools` — enable `get_user_data` + `get_user_bonus_history`
+- `--enable-seedbox` — enable `update_seedbox_ip`
+- `--enable-tool=<name>` — enable a specific tool by name (repeatable)
+- `--disable-tool=<name>` — disable a specific tool (repeatable, always wins)
+- `--list-tools` — print all tools with group and default status, then exit
 - `--test-connection` — verify the session cookie works, then exit
 
 ## Error Handling
