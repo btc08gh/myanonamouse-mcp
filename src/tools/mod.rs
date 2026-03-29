@@ -631,7 +631,7 @@ impl MamServer {
     ///   though seeding to site requirements is still required).
     /// - Use `sort: "most seeders"` to surface the best-seeded results first.
     /// - Use `offset` with `limit` to page through results.
-    #[tool]
+    #[tool(title = "Search Audiobooks", annotations(read_only_hint = true, destructive_hint = false, idempotent_hint = true))]
     async fn search_audiobooks(
         &self,
         Parameters(p): Parameters<SearchAudiobooksParams>,
@@ -679,7 +679,7 @@ impl MamServer {
     ///   though seeding to site requirements is still required).
     /// - Use `sort: "most seeders"` to surface the best-seeded results first.
     /// - Use `offset` with `limit` to page through results.
-    #[tool]
+    #[tool(title = "Search E-Books", annotations(read_only_hint = true, destructive_hint = false, idempotent_hint = true))]
     async fn search_ebooks(
         &self,
         Parameters(p): Parameters<SearchEbooksParams>,
@@ -725,7 +725,7 @@ impl MamServer {
     /// - Use `genre` to narrow by type (e.g. "Guitar/Bass Tabs", "Sheet Collection", "Music Book").
     /// - Use `search_type: "active"` to exclude dead torrents.
     /// - Use `sort: "newest"` to find recently added content.
-    #[tool]
+    #[tool(title = "Search Music", annotations(read_only_hint = true, destructive_hint = false, idempotent_hint = true))]
     async fn search_music(
         &self,
         Parameters(p): Parameters<SearchMusicParams>,
@@ -768,7 +768,7 @@ impl MamServer {
     /// - Use `genre` to narrow by type: Comedy, Factual/Documentary, Drama, Reading.
     /// - Use `search_type: "active"` to exclude dead torrents.
     /// - Use `sort: "newest"` to find recently added content.
-    #[tool]
+    #[tool(title = "Search Radio", annotations(read_only_hint = true, destructive_hint = false, idempotent_hint = true))]
     async fn search_radio(
         &self,
         Parameters(p): Parameters<SearchRadioParams>,
@@ -804,7 +804,7 @@ impl MamServer {
     /// Use this to look up numeric IDs for the `main_cat` and `cat` parameters of search_torrents.
     /// The per-category search tools (search_audiobooks, search_ebooks, search_music,
     /// search_radio) accept genre names directly and do not require these IDs.
-    #[tool]
+    #[tool(title = "List Categories", annotations(read_only_hint = true, destructive_hint = false, idempotent_hint = true))]
     async fn list_categories(
         &self,
         Parameters(_): Parameters<NoParams>,
@@ -823,7 +823,7 @@ impl MamServer {
     /// - Use `search_type: "fl"` or `"fl-VIP"` to find freeleech torrents.
     /// - Use `sort: "most seeders"` or `"newest"` to control ordering.
     /// - Search matches title, author, narrator, and series name by default.
-    #[tool]
+    #[tool(title = "Search Torrents", annotations(read_only_hint = true, destructive_hint = false, idempotent_hint = true))]
     async fn search_torrents(
         &self,
         Parameters(p): Parameters<SearchParams>,
@@ -849,7 +849,7 @@ impl MamServer {
 
     /// Fetch profile data for the authenticated user or another user by ID.
     /// Returns username, class, upload/download stats, ratio, and optionally notifications.
-    #[tool]
+    #[tool(title = "Get User Data", annotations(read_only_hint = true, destructive_hint = false, idempotent_hint = true))]
     async fn get_user_data(
         &self,
         Parameters(p): Parameters<UserDataParams>,
@@ -886,7 +886,7 @@ impl MamServer {
 
     /// Fetch bonus point transaction history for the authenticated user.
     /// Returns a list of transactions with timestamp, type, amount, and associated torrent or user.
-    #[tool]
+    #[tool(title = "Get Bonus History", annotations(read_only_hint = true, destructive_hint = false, idempotent_hint = true))]
     async fn get_user_bonus_history(
         &self,
         Parameters(p): Parameters<BonusHistoryParams>,
@@ -926,7 +926,7 @@ impl MamServer {
     /// tags, description, ISBN, media info, file count, size, seeders, leechers, flags,
     /// date added, and download URL.
     /// Use this after finding a torrent ID from a search to get complete information.
-    #[tool]
+    #[tool(title = "Get Torrent Details", annotations(read_only_hint = true, destructive_hint = false, idempotent_hint = true))]
     async fn get_torrent_details(
         &self,
         Parameters(p): Parameters<GetTorrentDetailsParams>,
@@ -997,7 +997,7 @@ impl MamServer {
     }
 
     /// Get the current IP address and ASN information as seen by MyAnonamouse.
-    #[tool]
+    #[tool(title = "Get IP Info", annotations(read_only_hint = true, destructive_hint = false, idempotent_hint = true))]
     async fn get_ip_info(&self, Parameters(_): Parameters<NoParams>) -> Result<String, String> {
         crate::mam::get_ip_info(&self.client)
             .await
@@ -1014,7 +1014,7 @@ impl MamServer {
 
     /// Register or refresh the current IP as a dynamic seedbox IP on MyAnonamouse.
     /// Rate limited to once per hour by MyAnonamouse.
-    #[tool]
+    #[tool(title = "Update Seedbox IP", annotations(read_only_hint = false, destructive_hint = false, idempotent_hint = true))]
     async fn update_seedbox_ip(
         &self,
         Parameters(_): Parameters<NoParams>,
