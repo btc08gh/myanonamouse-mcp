@@ -1377,7 +1377,8 @@ impl MamServer {
 
         if let Some(desc) = &t.description {
             if !desc.is_empty() {
-                out.push_str(&format!("\nDescription:\n{desc}\n"));
+                let md = htmd::convert(desc).unwrap_or_else(|_| desc.clone());
+                out.push_str(&format!("\nDescription:\n{md}\n"));
             }
         }
         if let Some(mi) = &t.mediainfo {
