@@ -8,7 +8,7 @@ use rmcp::{
     ServerHandler,
     handler::server::router::tool::ToolRouter,
     handler::server::wrapper::Parameters,
-    model::{Implementation, ServerInfo},
+    model::{Implementation, ServerCapabilities, ServerInfo},
     schemars,
     tool, tool_handler, tool_router,
 };
@@ -23,6 +23,7 @@ use serde_json::Value;
 pub struct MamServer {
     client: Arc<reqwest::Client>,
     tool_router: ToolRouter<Self>,
+    enabled_tools: HashSet<String>,
 }
 
 // ---------------------------------------------------------------------------
@@ -388,37 +389,26 @@ fn parse_sort(s: &str) -> Result<&'static str, String> {
 struct SearchAudiobooksParams {
     /// Search query — matches title, author, narrator, and series name
     query: String,
-    /// Genre filter (case-insensitive). Valid genres: Action/Adventure, Art, Biographical,
-    /// Business, Computer/Internet, Crafts, Crime/Thriller, Fantasy, Food, General Fiction,
-    /// General Non-Fiction, Historical Fiction, History, Home/Garden, Horror, Humor,
-    /// Instructional, Juvenile, Language, Literary Classics, Math/Science/Tech, Medical,
-    /// Mystery, Nature, Philosophy, Pol/Soc/Relig, Recreation, Romance, Science Fiction,
-    /// Self-Help, Travel/Adventure, True Crime, Urban Fantasy, Western, Young Adult.
+    /// Genre name (e.g. Fantasy, Mystery). Invalid values return an error listing all valid options.
     /// Multiple genres are OR-combined.
     #[serde(default)]
     genre: Option<Vec<String>>,
-    /// Language filter. Top languages on MAM: "English", "German", "French", "Spanish", "Italian".
-    /// Many more are supported — pass any standard language name or ISO 639-1 code (e.g. "de", "fr").
-    /// Multiple languages are OR-combined.
+    /// Language name or ISO 639-1 code (e.g. "French", "de"). OR-combined.
     #[serde(default)]
     language: Option<Vec<String>>,
-    /// Sort order (case-insensitive). Valid values: newest, oldest, most seeders, fewest seeders,
-    /// title a-z, title z-a, largest, smallest, most snatched, most leechers, random,
-    /// relevance (default).
+    /// Sort order: newest, oldest, most seeders, title a-z, relevance (default).
     #[serde(default)]
     sort: Option<String>,
-    /// Filter by torrent type. Valid values: all (default, includes dead torrents),
-    /// active (1+ seeders), inactive (0 seeders), fl (freeleech), fl-VIP (freeleech or VIP),
-    /// VIP, nVIP (not VIP).
+    /// Torrent filter: all (default), active (1+ seeders), inactive, fl (freeleech), fl-VIP, VIP, nVIP.
     #[serde(default)]
     search_type: Option<String>,
-    /// Minimum number of seeders (inclusive). Use 1 to exclude dead torrents.
+    /// Minimum seeders (1 excludes dead torrents).
     #[serde(default)]
     min_seeders: Option<i32>,
-    /// Maximum number of results to return (default: 20, max: 100)
+    /// Max results (default 20, max 100).
     #[serde(default)]
     limit: Option<u32>,
-    /// Result offset for pagination (default: 0)
+    /// Pagination offset (default 0).
     #[serde(default)]
     offset: Option<u32>,
 }
@@ -427,38 +417,26 @@ struct SearchAudiobooksParams {
 struct SearchEbooksParams {
     /// Search query — matches title, author, and series name
     query: String,
-    /// Genre filter (case-insensitive). Valid genres: Action/Adventure, Art, Biographical,
-    /// Business, Comics/Graphic Novels, Computer/Internet, Crafts, Crime/Thriller, Fantasy,
-    /// Food, General Fiction, General Non-Fiction, Historical Fiction, History, Home/Garden,
-    /// Horror, Humor, Illusion/Magic, Instructional, Juvenile, Language, Literary Classics,
-    /// Magazines/Newspapers, Math/Science/Tech, Medical, Mixed Collections, Mystery, Nature,
-    /// Philosophy, Pol/Soc/Relig, Recreation, Romance, Science Fiction, Self-Help,
-    /// Travel/Adventure, True Crime, Urban Fantasy, Western, Young Adult.
+    /// Genre name (e.g. Fantasy, Science Fiction, Comics). Invalid values return an error listing all valid options.
     /// Multiple genres are OR-combined.
     #[serde(default)]
     genre: Option<Vec<String>>,
-    /// Language filter. Top languages on MAM: "English", "German", "French", "Spanish", "Italian".
-    /// Many more are supported — pass any standard language name or ISO 639-1 code (e.g. "de", "fr").
-    /// Multiple languages are OR-combined.
+    /// Language name or ISO 639-1 code (e.g. "French", "de"). OR-combined.
     #[serde(default)]
     language: Option<Vec<String>>,
-    /// Sort order (case-insensitive). Valid values: newest, oldest, most seeders, fewest seeders,
-    /// title a-z, title z-a, largest, smallest, most snatched, most leechers, random,
-    /// relevance (default).
+    /// Sort order: newest, oldest, most seeders, title a-z, relevance (default).
     #[serde(default)]
     sort: Option<String>,
-    /// Filter by torrent type. Valid values: all (default, includes dead torrents),
-    /// active (1+ seeders), inactive (0 seeders), fl (freeleech), fl-VIP (freeleech or VIP),
-    /// VIP, nVIP (not VIP).
+    /// Torrent filter: all (default), active (1+ seeders), inactive, fl (freeleech), fl-VIP, VIP, nVIP.
     #[serde(default)]
     search_type: Option<String>,
-    /// Minimum number of seeders (inclusive). Use 1 to exclude dead torrents.
+    /// Minimum seeders (1 excludes dead torrents).
     #[serde(default)]
     min_seeders: Option<i32>,
-    /// Maximum number of results to return (default: 20, max: 100)
+    /// Max results (default 20, max 100).
     #[serde(default)]
     limit: Option<u32>,
-    /// Result offset for pagination (default: 0)
+    /// Pagination offset (default 0).
     #[serde(default)]
     offset: Option<u32>,
 }
@@ -467,35 +445,26 @@ struct SearchEbooksParams {
 struct SearchMusicParams {
     /// Search query — matches title and author/composer name
     query: String,
-    /// Genre filter (case-insensitive). Valid genres: Art, Guitar/Bass Tabs, Individual Sheet,
-    /// Individual Sheet MP3, Instructional Media, Lick Library LTP/Jam,
-    /// Lick Library Techniques, Music Complete Editions, Music Book, Music Book MP3,
-    /// Sheet Collection, Sheet Collection MP3, Instructional Book with Video.
+    /// Genre name (e.g. Guitar/Bass Tabs, Sheet Collection, Music Book). Invalid values return an error listing all valid options.
     /// Multiple genres are OR-combined.
     #[serde(default)]
     genre: Option<Vec<String>>,
-    /// Language filter. Top languages on MAM: "English", "German", "French", "Spanish", "Italian".
-    /// Many more are supported — pass any standard language name or ISO 639-1 code (e.g. "de", "fr").
-    /// Multiple languages are OR-combined.
+    /// Language name or ISO 639-1 code (e.g. "French", "de"). OR-combined.
     #[serde(default)]
     language: Option<Vec<String>>,
-    /// Sort order (case-insensitive). Valid values: newest, oldest, most seeders, fewest seeders,
-    /// title a-z, title z-a, largest, smallest, most snatched, most leechers, random,
-    /// relevance (default).
+    /// Sort order: newest, oldest, most seeders, title a-z, relevance (default).
     #[serde(default)]
     sort: Option<String>,
-    /// Filter by torrent type. Valid values: all (default, includes dead torrents),
-    /// active (1+ seeders), inactive (0 seeders), fl (freeleech), fl-VIP (freeleech or VIP),
-    /// VIP, nVIP (not VIP).
+    /// Torrent filter: all (default), active (1+ seeders), inactive, fl (freeleech), fl-VIP, VIP, nVIP.
     #[serde(default)]
     search_type: Option<String>,
-    /// Minimum number of seeders (inclusive). Use 1 to exclude dead torrents.
+    /// Minimum seeders (1 excludes dead torrents).
     #[serde(default)]
     min_seeders: Option<i32>,
-    /// Maximum number of results to return (default: 20, max: 100)
+    /// Max results (default 20, max 100).
     #[serde(default)]
     limit: Option<u32>,
-    /// Result offset for pagination (default: 0)
+    /// Pagination offset (default 0).
     #[serde(default)]
     offset: Option<u32>,
 }
@@ -504,32 +473,26 @@ struct SearchMusicParams {
 struct SearchRadioParams {
     /// Search query — matches title and series name
     query: String,
-    /// Genre filter (case-insensitive). Valid genres: Comedy, Factual/Documentary, Drama,
-    /// Reading. Multiple genres are OR-combined.
+    /// Genre name (e.g. Comedy, Drama, Reading). Invalid values return an error listing all valid options.
+    /// Multiple genres are OR-combined.
     #[serde(default)]
     genre: Option<Vec<String>>,
-    /// Language filter. Top languages on MAM: "English", "German", "French", "Spanish", "Italian".
-    /// Many more are supported — pass any standard language name or ISO 639-1 code (e.g. "de", "fr").
-    /// Multiple languages are OR-combined.
+    /// Language name or ISO 639-1 code (e.g. "French", "de"). OR-combined.
     #[serde(default)]
     language: Option<Vec<String>>,
-    /// Sort order (case-insensitive). Valid values: newest, oldest, most seeders, fewest seeders,
-    /// title a-z, title z-a, largest, smallest, most snatched, most leechers, random,
-    /// relevance (default).
+    /// Sort order: newest, oldest, most seeders, title a-z, relevance (default).
     #[serde(default)]
     sort: Option<String>,
-    /// Filter by torrent type. Valid values: all (default, includes dead torrents),
-    /// active (1+ seeders), inactive (0 seeders), fl (freeleech), fl-VIP (freeleech or VIP),
-    /// VIP, nVIP (not VIP).
+    /// Torrent filter: all (default), active (1+ seeders), inactive, fl (freeleech), fl-VIP, VIP, nVIP.
     #[serde(default)]
     search_type: Option<String>,
-    /// Minimum number of seeders (inclusive). Use 1 to exclude dead torrents.
+    /// Minimum seeders (1 excludes dead torrents).
     #[serde(default)]
     min_seeders: Option<i32>,
-    /// Maximum number of results to return (default: 20, max: 100)
+    /// Max results (default 20, max 100).
     #[serde(default)]
     limit: Option<u32>,
-    /// Result offset for pagination (default: 0)
+    /// Pagination offset (default 0).
     #[serde(default)]
     offset: Option<u32>,
 }
@@ -538,48 +501,28 @@ struct SearchRadioParams {
 struct SearchParams {
     /// Search query text
     query: String,
-    /// Maximum number of results to return (default: 20, max: 100)
+    /// Max results (default 20, max 100).
     #[serde(default)]
     limit: Option<u32>,
-    /// Result offset for pagination (default: 0)
+    /// Pagination offset (default 0).
     #[serde(default)]
     offset: Option<u32>,
-    /// Sort order. Accepts natural language ("newest", "most seeders", "title a-z") or
-    /// raw API strings ("dateDesc", "seedersDesc"). Defaults to relevance.
-    /// Full list: newest, oldest, most seeders, fewest seeders, most leechers, fewest leechers,
-    /// title a-z, title z-a, largest, smallest, most snatched, least snatched,
-    /// most files, fewest files, category a-z, category z-a, random, relevance.
+    /// Sort order: newest, oldest, most seeders, title a-z, relevance (default).
     #[serde(default)]
     sort: Option<String>,
-    /// Filter by main category ID. Valid values: 13 (AudioBooks), 14 (E-Books),
-    /// 15 (Musicology), 16 (Radio). Omit to search all categories.
-    /// Use `cat` instead when you know the specific genre.
+    /// Main category ID: 13 (AudioBooks), 14 (E-Books), 15 (Musicology), 16 (Radio). Omit for all.
     #[serde(default)]
     main_cat: Option<Vec<u32>>,
-    /// Filter by torrent type. Valid values:
-    /// "all" (default, includes dead torrents), "active" (1+ seeders), "inactive" (0 seeders),
-    /// "fl" (freeleech), "fl-VIP" (freeleech or VIP), "VIP", "nVIP" (not VIP).
+    /// Torrent filter: all (default), active (1+ seeders), inactive, fl (freeleech), fl-VIP, VIP, nVIP.
     #[serde(default)]
     search_type: Option<String>,
-    /// Language filter. Top languages on MAM: "English", "German", "French", "Spanish", "Italian".
-    /// Many more are supported — pass any standard language name or ISO 639-1 code (e.g. "de", "fr").
-    /// Multiple languages are OR-combined. Omit to search all languages.
+    /// Language name or ISO 639-1 code (e.g. "French", "de"). OR-combined.
     #[serde(default)]
     lang: Option<Vec<String>>,
-    /// Minimum number of seeders (inclusive). Use 1 to exclude dead torrents.
+    /// Minimum seeders (1 excludes dead torrents).
     #[serde(default)]
     min_seeders: Option<i32>,
-    /// Filter by subcategory ID. Use list_categories to get the full table.
-    /// Audiobooks: 39 (Action/Adventure), 49 (Art), 50 (Biographical), 83 (Business),
-    /// 51 (Computer/Internet), 97 (Crafts), 40 (Crime/Thriller), 41 (Fantasy), 106 (Food),
-    /// 42 (General Fiction), 52 (General Non-Fiction), 98 (Historical Fiction), 54 (History),
-    /// 55 (Home/Garden), 43 (Horror), 99 (Humor), 84 (Instructional), 44 (Juvenile),
-    /// 56 (Language), 45 (Literary Classics), 57 (Math/Science/Tech), 85 (Medical),
-    /// 87 (Mystery), 119 (Nature), 88 (Philosophy), 58 (Pol/Soc/Relig), 59 (Recreation),
-    /// 46 (Romance), 47 (Science Fiction), 53 (Self-Help), 89 (Travel/Adventure),
-    /// 100 (True Crime), 108 (Urban Fantasy), 48 (Western), 111 (Young Adult).
-    /// Ebooks: 60-112 range — call list_categories for the full table.
-    /// Musicology: 17-31 range. Radio: 127-132 range.
+    /// Subcategory ID. Call list_categories for the full table.
     #[serde(default)]
     cat: Option<Vec<u32>>,
 }
@@ -622,15 +565,6 @@ impl MamServer {
     /// Search for audiobooks on MyAnonamouse (MAM).
     /// Returns matching torrents with title, authors, narrators, series, size, seeders,
     /// and download URL.
-    ///
-    /// Tips for best results:
-    /// - Use `genre` to narrow by genre name (e.g. "Fantasy", "Mystery").
-    /// - Use `language` to filter by spoken language (e.g. "English", "French").
-    /// - Use `search_type: "active"` to exclude dead torrents (no seeders).
-    /// - Use `search_type: "fl"` to find freeleech torrents (do not count against download ratio,
-    ///   though seeding to site requirements is still required).
-    /// - Use `sort: "most seeders"` to surface the best-seeded results first.
-    /// - Use `offset` with `limit` to page through results.
     #[tool(title = "Search Audiobooks", annotations(read_only_hint = true, destructive_hint = false, idempotent_hint = true))]
     async fn search_audiobooks(
         &self,
@@ -670,15 +604,6 @@ impl MamServer {
 
     /// Search for ebooks on MyAnonamouse (MAM).
     /// Returns matching torrents with title, authors, series, size, seeders, and download URL.
-    ///
-    /// Tips for best results:
-    /// - Use `genre` to narrow by genre name (e.g. "Fantasy", "Science Fiction", "Comics").
-    /// - Use `language` to filter by language (e.g. "English", "French").
-    /// - Use `search_type: "active"` to exclude dead torrents (no seeders).
-    /// - Use `search_type: "fl"` to find freeleech torrents (do not count against download ratio,
-    ///   though seeding to site requirements is still required).
-    /// - Use `sort: "most seeders"` to surface the best-seeded results first.
-    /// - Use `offset` with `limit` to page through results.
     #[tool(title = "Search E-Books", annotations(read_only_hint = true, destructive_hint = false, idempotent_hint = true))]
     async fn search_ebooks(
         &self,
@@ -720,11 +645,6 @@ impl MamServer {
     /// Search for musicology content on MyAnonamouse (MAM) — sheet music, instructional
     /// media, guitar tabs, music books, and similar resources.
     /// Returns matching torrents with title, size, seeders, and download URL.
-    ///
-    /// Tips for best results:
-    /// - Use `genre` to narrow by type (e.g. "Guitar/Bass Tabs", "Sheet Collection", "Music Book").
-    /// - Use `search_type: "active"` to exclude dead torrents.
-    /// - Use `sort: "newest"` to find recently added content.
     #[tool(title = "Search Music", annotations(read_only_hint = true, destructive_hint = false, idempotent_hint = true))]
     async fn search_music(
         &self,
@@ -763,11 +683,6 @@ impl MamServer {
     /// Search for radio content on MyAnonamouse (MAM) — BBC Radio, podcasts, dramatisations,
     /// comedy recordings, readings, and similar audio programmes.
     /// Returns matching torrents with title, size, seeders, and download URL.
-    ///
-    /// Tips for best results:
-    /// - Use `genre` to narrow by type: Comedy, Factual/Documentary, Drama, Reading.
-    /// - Use `search_type: "active"` to exclude dead torrents.
-    /// - Use `sort: "newest"` to find recently added content.
     #[tool(title = "Search Radio", annotations(read_only_hint = true, destructive_hint = false, idempotent_hint = true))]
     async fn search_radio(
         &self,
@@ -815,14 +730,6 @@ impl MamServer {
     /// Search for torrents on MyAnonamouse (MAM) across all categories with full parameter
     /// control. Prefer search_audiobooks, search_ebooks, search_music, or search_radio for
     /// typical searches — this tool is for cross-category queries or advanced filtering.
-    ///
-    /// Tips for best results:
-    /// - Use `cat` with numeric subcategory IDs (call list_categories to get the full table).
-    /// - Use `main_cat` to restrict to a top-level category without specifying a subcategory.
-    /// - Use `search_type: "active"` to exclude dead torrents (no seeders).
-    /// - Use `search_type: "fl"` or `"fl-VIP"` to find freeleech torrents.
-    /// - Use `sort: "most seeders"` or `"newest"` to control ordering.
-    /// - Search matches title, author, narrator, and series name by default.
     #[tool(title = "Search Torrents", annotations(read_only_hint = true, destructive_hint = false, idempotent_hint = true))]
     async fn search_torrents(
         &self,
@@ -1108,6 +1015,7 @@ impl MamServer {
         Self {
             client,
             tool_router: router,
+            enabled_tools,
         }
     }
 
@@ -1619,9 +1527,18 @@ impl MamServer {
 #[tool_handler]
 impl ServerHandler for MamServer {
     fn get_info(&self) -> ServerInfo {
-        ServerInfo::default().with_server_info(Implementation::new(
-            env!("CARGO_PKG_NAME"),
-            env!("CARGO_PKG_VERSION"),
-        ))
+        let mut tool_names: Vec<&str> = TOOL_REGISTRY
+            .iter()
+            .filter(|(name, _, _)| self.enabled_tools.contains(*name))
+            .map(|(name, _, _)| *name)
+            .collect();
+        tool_names.sort();
+        let instructions = format!("Available tools: {}", tool_names.join(", "));
+        ServerInfo::new(ServerCapabilities::builder().enable_tools().build())
+            .with_server_info(Implementation::new(
+                env!("CARGO_PKG_NAME"),
+                env!("CARGO_PKG_VERSION"),
+            ))
+            .with_instructions(instructions)
     }
 }
