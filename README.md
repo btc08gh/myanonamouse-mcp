@@ -98,7 +98,7 @@ Run `myanonamouse-mcp --list-tools` to see all tools with their current default 
 | `search_music` | ✓ | Search musicology content (sheet music, tabs, instructional) by genre |
 | `search_radio` | ✓ | Search radio recordings by genre |
 | `get_torrent_details` | ✓ | Full details for one torrent by ID or hash |
-| `get_ip_info` | ✓ | Check current IP and ASN as seen by MAM |
+| `get_ip_info` | — | Check current IP and ASN as seen by MAM |
 | `search_torrents` | — | Cross-category power search with numeric category/language IDs |
 | `list_categories` | — | Full category and subcategory ID table for `search_torrents` |
 | `get_user_data` | — | User profile — stats, ratio, seed bonus, notifications |
@@ -111,10 +111,10 @@ Tools are organised into groups to keep the default token footprint small. Enabl
 
 | Group | Flag | Tools | When to use |
 |---|---|---|---|
-| default | _(on by default)_ | `search_audiobooks`, `search_ebooks`, `search_music`, `search_radio`, `get_torrent_details`, `get_ip_info` | Always available — read-only browsing and search |
+| default | _(on by default)_ | `search_audiobooks`, `search_ebooks`, `search_music`, `search_radio`, `get_torrent_details` | Always available — read-only browsing and search |
 | power | `--enable-power-tools` | `search_torrents`, `list_categories` | Cross-category search using raw numeric IDs; useful when the per-category tools aren't flexible enough |
 | user | `--enable-user-tools` | `get_user_data`, `get_user_bonus_history` | Access to your account stats, ratio, and bonus point history |
-| seedbox | `--enable-seedbox` | `update_seedbox_ip` | Registers your current IP as a dynamic seedbox IP on MAM |
+| seedbox | `--enable-seedbox` | `update_seedbox_ip`, `get_ip_info` | Registers your current IP as a dynamic seedbox IP on MAM; check IP/ASN as seen by MAM |
 
 ```bash
 # Enable the cross-category power search tools

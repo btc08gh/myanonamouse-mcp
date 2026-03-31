@@ -99,7 +99,7 @@ Tools are grouped by opt-in flag. The default set is lean to minimise LLM token 
 | `search_music` | default | ✓ | Search musicology content by query, genre name |
 | `search_radio` | default | ✓ | Search radio content by query, genre name |
 | `get_torrent_details` | default | ✓ | Full details for one torrent by ID or hash |
-| `get_ip_info` | default | ✓ | Current IP and ASN as seen by MAM |
+| `get_ip_info` | seedbox | — | Current IP and ASN as seen by MAM |
 | `search_torrents` | power | — | Cross-category power search with raw category/language IDs |
 | `list_categories` | power | — | Returns full category/subcategory ID table for `search_torrents` |
 | `get_user_data` | user | — | User profile — stats, ratio, notifications |

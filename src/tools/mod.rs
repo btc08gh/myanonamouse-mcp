@@ -981,7 +981,7 @@ pub const TOOL_REGISTRY: &[(&str, &str, bool)] = &[
     ("search_music",           "default", true),
     ("search_radio",           "default", true),
     ("get_torrent_details",    "default", true),
-    ("get_ip_info",            "default", true),
+    ("get_ip_info",            "seedbox", false),
     ("search_torrents",        "power",   false),
     ("list_categories",        "power",   false),
     ("get_user_data",          "user",    false),
