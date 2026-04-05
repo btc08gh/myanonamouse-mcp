@@ -5,11 +5,12 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 use rmcp::{
-    ServerHandler,
+    RoleServer, ServerHandler,
     handler::server::router::tool::ToolRouter,
     handler::server::wrapper::Parameters,
-    model::{Implementation, ServerCapabilities, ServerInfo},
+    model::{Implementation, ServerCapabilities, ServerInfo, SetLevelRequestParams},
     schemars,
+    service::RequestContext,
     tool, tool_handler, tool_router,
 };
 use serde::Deserialize;
@@ -385,31 +386,58 @@ fn parse_sort(s: &str) -> Result<&'static str, String> {
 // Parameter types
 // ---------------------------------------------------------------------------
 
+/// Strips the `"default"` key from a generated JSON Schema.
+/// Applied via `#[schemars(transform = remove_null_default)]` on fields that need `#[serde(default)]`
+/// for correct deserialization but should not advertise `"default": null` to LLMs.
+fn remove_null_default(schema: &mut schemars::Schema) {
+    schema.remove("default");
+}
+
+/// Deserializes either a single string or an array of strings into `Option<Vec<String>>`.
+/// LLMs sometimes pass a bare string even when the schema says array.
+mod string_or_vec {
+    use serde::{Deserialize, Deserializer};
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<Vec<String>>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        #[serde(untagged)]
+        enum OneOrMany {
+            One(String),
+            Many(Vec<String>),
+        }
+        let opt = Option::<OneOrMany>::deserialize(deserializer)?;
+        Ok(opt.map(|v| match v {
+            OneOrMany::One(s) => vec![s],
+            OneOrMany::Many(v) => v,
+        }))
+    }
+}
+
 #[derive(Deserialize, schemars::JsonSchema)]
 struct SearchAudiobooksParams {
     /// Search query — matches title, author, narrator, and series name
     query: String,
     /// Genre name (e.g. Fantasy, Mystery). Invalid values return an error listing all valid options.
     /// Multiple genres are OR-combined.
-    #[serde(default)]
+    #[serde(default, deserialize_with = "string_or_vec::deserialize")]
+    #[schemars(transform = remove_null_default)]
     genre: Option<Vec<String>>,
     /// Language name or ISO 639-1 code (e.g. "French", "de"). OR-combined.
-    #[serde(default)]
+    #[serde(default, deserialize_with = "string_or_vec::deserialize")]
+    #[schemars(transform = remove_null_default)]
     language: Option<Vec<String>>,
     /// Sort order: newest, oldest, most seeders, title a-z, relevance (default).
-    #[serde(default)]
     sort: Option<String>,
     /// Torrent filter: all (default), active (1+ seeders), inactive, fl (freeleech), fl-VIP, VIP, nVIP.
-    #[serde(default)]
     search_type: Option<String>,
     /// Minimum seeders (1 excludes dead torrents).
-    #[serde(default)]
     min_seeders: Option<i32>,
     /// Max results (default 20, max 100).
-    #[serde(default)]
     limit: Option<u32>,
     /// Pagination offset (default 0).
-    #[serde(default)]
     offset: Option<u32>,
 }
 
@@ -419,25 +447,22 @@ struct SearchEbooksParams {
     query: String,
     /// Genre name (e.g. Fantasy, Science Fiction, Comics). Invalid values return an error listing all valid options.
     /// Multiple genres are OR-combined.
-    #[serde(default)]
+    #[serde(default, deserialize_with = "string_or_vec::deserialize")]
+    #[schemars(transform = remove_null_default)]
     genre: Option<Vec<String>>,
     /// Language name or ISO 639-1 code (e.g. "French", "de"). OR-combined.
-    #[serde(default)]
+    #[serde(default, deserialize_with = "string_or_vec::deserialize")]
+    #[schemars(transform = remove_null_default)]
     language: Option<Vec<String>>,
     /// Sort order: newest, oldest, most seeders, title a-z, relevance (default).
-    #[serde(default)]
     sort: Option<String>,
     /// Torrent filter: all (default), active (1+ seeders), inactive, fl (freeleech), fl-VIP, VIP, nVIP.
-    #[serde(default)]
     search_type: Option<String>,
     /// Minimum seeders (1 excludes dead torrents).
-    #[serde(default)]
     min_seeders: Option<i32>,
     /// Max results (default 20, max 100).
-    #[serde(default)]
     limit: Option<u32>,
     /// Pagination offset (default 0).
-    #[serde(default)]
     offset: Option<u32>,
 }
 
@@ -447,25 +472,22 @@ struct SearchMusicParams {
     query: String,
     /// Genre name (e.g. Guitar/Bass Tabs, Sheet Collection, Music Book). Invalid values return an error listing all valid options.
     /// Multiple genres are OR-combined.
-    #[serde(default)]
+    #[serde(default, deserialize_with = "string_or_vec::deserialize")]
+    #[schemars(transform = remove_null_default)]
     genre: Option<Vec<String>>,
     /// Language name or ISO 639-1 code (e.g. "French", "de"). OR-combined.
-    #[serde(default)]
+    #[serde(default, deserialize_with = "string_or_vec::deserialize")]
+    #[schemars(transform = remove_null_default)]
     language: Option<Vec<String>>,
     /// Sort order: newest, oldest, most seeders, title a-z, relevance (default).
-    #[serde(default)]
     sort: Option<String>,
     /// Torrent filter: all (default), active (1+ seeders), inactive, fl (freeleech), fl-VIP, VIP, nVIP.
-    #[serde(default)]
     search_type: Option<String>,
     /// Minimum seeders (1 excludes dead torrents).
-    #[serde(default)]
     min_seeders: Option<i32>,
     /// Max results (default 20, max 100).
-    #[serde(default)]
     limit: Option<u32>,
     /// Pagination offset (default 0).
-    #[serde(default)]
     offset: Option<u32>,
 }
 
@@ -475,25 +497,22 @@ struct SearchRadioParams {
     query: String,
     /// Genre name (e.g. Comedy, Drama, Reading). Invalid values return an error listing all valid options.
     /// Multiple genres are OR-combined.
-    #[serde(default)]
+    #[serde(default, deserialize_with = "string_or_vec::deserialize")]
+    #[schemars(transform = remove_null_default)]
     genre: Option<Vec<String>>,
     /// Language name or ISO 639-1 code (e.g. "French", "de"). OR-combined.
-    #[serde(default)]
+    #[serde(default, deserialize_with = "string_or_vec::deserialize")]
+    #[schemars(transform = remove_null_default)]
     language: Option<Vec<String>>,
     /// Sort order: newest, oldest, most seeders, title a-z, relevance (default).
-    #[serde(default)]
     sort: Option<String>,
     /// Torrent filter: all (default), active (1+ seeders), inactive, fl (freeleech), fl-VIP, VIP, nVIP.
-    #[serde(default)]
     search_type: Option<String>,
     /// Minimum seeders (1 excludes dead torrents).
-    #[serde(default)]
     min_seeders: Option<i32>,
     /// Max results (default 20, max 100).
-    #[serde(default)]
     limit: Option<u32>,
     /// Pagination offset (default 0).
-    #[serde(default)]
     offset: Option<u32>,
 }
 
@@ -502,28 +521,22 @@ struct SearchParams {
     /// Search query text
     query: String,
     /// Max results (default 20, max 100).
-    #[serde(default)]
     limit: Option<u32>,
     /// Pagination offset (default 0).
-    #[serde(default)]
     offset: Option<u32>,
     /// Sort order: newest, oldest, most seeders, title a-z, relevance (default).
-    #[serde(default)]
     sort: Option<String>,
     /// Main category ID: 13 (AudioBooks), 14 (E-Books), 15 (Musicology), 16 (Radio). Omit for all.
-    #[serde(default)]
     main_cat: Option<Vec<u32>>,
     /// Torrent filter: all (default), active (1+ seeders), inactive, fl (freeleech), fl-VIP, VIP, nVIP.
-    #[serde(default)]
     search_type: Option<String>,
     /// Language name or ISO 639-1 code (e.g. "French", "de"). OR-combined.
-    #[serde(default)]
+    #[serde(default, deserialize_with = "string_or_vec::deserialize")]
+    #[schemars(transform = remove_null_default)]
     lang: Option<Vec<String>>,
     /// Minimum seeders (1 excludes dead torrents).
-    #[serde(default)]
     min_seeders: Option<i32>,
     /// Subcategory ID. Call list_categories for the full table.
-    #[serde(default)]
     cat: Option<Vec<u32>>,
 }
 
@@ -532,7 +545,6 @@ struct UserDataParams {
     /// User ID to fetch data for. Omit to fetch data for the authenticated user.
     user_id: Option<u64>,
     /// Include unread notifications in the response
-    #[serde(default)]
     include_notifications: Option<bool>,
 }
 
@@ -1534,11 +1546,24 @@ impl ServerHandler for MamServer {
             .collect();
         tool_names.sort();
         let instructions = format!("Available tools: {}", tool_names.join(", "));
-        ServerInfo::new(ServerCapabilities::builder().enable_tools().build())
-            .with_server_info(Implementation::new(
-                env!("CARGO_PKG_NAME"),
-                env!("CARGO_PKG_VERSION"),
-            ))
-            .with_instructions(instructions)
+        ServerInfo::new(
+            ServerCapabilities::builder()
+                .enable_tools()
+                .enable_logging()
+                .build(),
+        )
+        .with_server_info(Implementation::new(
+            env!("CARGO_PKG_NAME"),
+            env!("CARGO_PKG_VERSION"),
+        ))
+        .with_instructions(instructions)
+    }
+
+    async fn set_level(
+        &self,
+        _request: SetLevelRequestParams,
+        _context: RequestContext<RoleServer>,
+    ) -> Result<(), rmcp::ErrorData> {
+        Ok(())
     }
 }
