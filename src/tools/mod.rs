@@ -577,7 +577,7 @@ impl MamServer {
     /// Search for audiobooks on MyAnonamouse (MAM).
     /// Returns matching torrents with title, authors, narrators, series, size, seeders,
     /// and download URL.
-    #[tool(title = "Search Audiobooks", annotations(read_only_hint = true, destructive_hint = false, idempotent_hint = true))]
+    #[tool(name = "mam_search_audiobooks", title = "Search Audiobooks", annotations(read_only_hint = true, destructive_hint = false, idempotent_hint = true))]
     async fn search_audiobooks(
         &self,
         Parameters(p): Parameters<SearchAudiobooksParams>,
@@ -616,7 +616,7 @@ impl MamServer {
 
     /// Search for ebooks on MyAnonamouse (MAM).
     /// Returns matching torrents with title, authors, series, size, seeders, and download URL.
-    #[tool(title = "Search E-Books", annotations(read_only_hint = true, destructive_hint = false, idempotent_hint = true))]
+    #[tool(name = "mam_search_ebooks", title = "Search E-Books", annotations(read_only_hint = true, destructive_hint = false, idempotent_hint = true))]
     async fn search_ebooks(
         &self,
         Parameters(p): Parameters<SearchEbooksParams>,
@@ -657,7 +657,7 @@ impl MamServer {
     /// Search for musicology content on MyAnonamouse (MAM) — sheet music, instructional
     /// media, guitar tabs, music books, and similar resources.
     /// Returns matching torrents with title, size, seeders, and download URL.
-    #[tool(title = "Search Music", annotations(read_only_hint = true, destructive_hint = false, idempotent_hint = true))]
+    #[tool(name = "mam_search_music", title = "Search Music", annotations(read_only_hint = true, destructive_hint = false, idempotent_hint = true))]
     async fn search_music(
         &self,
         Parameters(p): Parameters<SearchMusicParams>,
@@ -695,7 +695,7 @@ impl MamServer {
     /// Search for radio content on MyAnonamouse (MAM) — BBC Radio, podcasts, dramatisations,
     /// comedy recordings, readings, and similar audio programmes.
     /// Returns matching torrents with title, size, seeders, and download URL.
-    #[tool(title = "Search Radio", annotations(read_only_hint = true, destructive_hint = false, idempotent_hint = true))]
+    #[tool(name = "mam_search_radio", title = "Search Radio", annotations(read_only_hint = true, destructive_hint = false, idempotent_hint = true))]
     async fn search_radio(
         &self,
         Parameters(p): Parameters<SearchRadioParams>,
@@ -731,7 +731,7 @@ impl MamServer {
     /// Use this to look up numeric IDs for the `main_cat` and `cat` parameters of search_torrents.
     /// The per-category search tools (search_audiobooks, search_ebooks, search_music,
     /// search_radio) accept genre names directly and do not require these IDs.
-    #[tool(title = "List Categories", annotations(read_only_hint = true, destructive_hint = false, idempotent_hint = true))]
+    #[tool(name = "mam_list_categories", title = "List Categories", annotations(read_only_hint = true, destructive_hint = false, idempotent_hint = true))]
     async fn list_categories(
         &self,
         Parameters(_): Parameters<NoParams>,
@@ -742,7 +742,7 @@ impl MamServer {
     /// Search for torrents on MyAnonamouse (MAM) across all categories with full parameter
     /// control. Prefer search_audiobooks, search_ebooks, search_music, or search_radio for
     /// typical searches — this tool is for cross-category queries or advanced filtering.
-    #[tool(title = "Search Torrents", annotations(read_only_hint = true, destructive_hint = false, idempotent_hint = true))]
+    #[tool(name = "mam_search_torrents", title = "Search Torrents", annotations(read_only_hint = true, destructive_hint = false, idempotent_hint = true))]
     async fn search_torrents(
         &self,
         Parameters(p): Parameters<SearchParams>,
@@ -768,7 +768,7 @@ impl MamServer {
 
     /// Fetch profile data for the authenticated user or another user by ID.
     /// Returns username, class, upload/download stats, ratio, and optionally notifications.
-    #[tool(title = "Get User Data", annotations(read_only_hint = true, destructive_hint = false, idempotent_hint = true))]
+    #[tool(name = "mam_get_user_data", title = "Get User Data", annotations(read_only_hint = true, destructive_hint = false, idempotent_hint = true))]
     async fn get_user_data(
         &self,
         Parameters(p): Parameters<UserDataParams>,
@@ -805,7 +805,7 @@ impl MamServer {
 
     /// Fetch bonus point transaction history for the authenticated user.
     /// Returns a list of transactions with timestamp, type, amount, and associated torrent or user.
-    #[tool(title = "Get Bonus History", annotations(read_only_hint = true, destructive_hint = false, idempotent_hint = true))]
+    #[tool(name = "mam_get_user_bonus_history", title = "Get Bonus History", annotations(read_only_hint = true, destructive_hint = false, idempotent_hint = true))]
     async fn get_user_bonus_history(
         &self,
         Parameters(p): Parameters<BonusHistoryParams>,
@@ -845,7 +845,7 @@ impl MamServer {
     /// tags, description, ISBN, media info, file count, size, seeders, leechers, flags,
     /// date added, and download URL.
     /// Use this after finding a torrent ID from a search to get complete information.
-    #[tool(title = "Get Torrent Details", annotations(read_only_hint = true, destructive_hint = false, idempotent_hint = true))]
+    #[tool(name = "mam_get_torrent_details", title = "Get Torrent Details", annotations(read_only_hint = true, destructive_hint = false, idempotent_hint = true))]
     async fn get_torrent_details(
         &self,
         Parameters(p): Parameters<GetTorrentDetailsParams>,
@@ -916,7 +916,7 @@ impl MamServer {
     }
 
     /// Get the current IP address and ASN information as seen by MyAnonamouse.
-    #[tool(title = "Get IP Info", annotations(read_only_hint = true, destructive_hint = false, idempotent_hint = true))]
+    #[tool(name = "mam_get_ip_info", title = "Get IP Info", annotations(read_only_hint = true, destructive_hint = false, idempotent_hint = true))]
     async fn get_ip_info(&self, Parameters(_): Parameters<NoParams>) -> Result<String, String> {
         crate::mam::get_ip_info(&self.client)
             .await
@@ -933,7 +933,7 @@ impl MamServer {
 
     /// Register or refresh the current IP as a dynamic seedbox IP on MyAnonamouse.
     /// Rate limited to once per hour by MyAnonamouse.
-    #[tool(title = "Update Seedbox IP", annotations(read_only_hint = false, destructive_hint = false, idempotent_hint = true))]
+    #[tool(name = "mam_update_seedbox_ip", title = "Update Seedbox IP", annotations(read_only_hint = false, destructive_hint = false, idempotent_hint = true))]
     async fn update_seedbox_ip(
         &self,
         Parameters(_): Parameters<NoParams>,
@@ -988,32 +988,32 @@ impl MamServer {
 /// Registry of all tools: (name, group, enabled_by_default).
 /// Used by --list-tools and to build the enabled set at startup.
 pub const TOOL_REGISTRY: &[(&str, &str, bool)] = &[
-    ("search_audiobooks",      "default", true),
-    ("search_ebooks",          "default", true),
-    ("search_music",           "default", true),
-    ("search_radio",           "default", true),
-    ("get_torrent_details",    "default", true),
-    ("get_ip_info",            "seedbox", false),
-    ("search_torrents",        "power",   false),
-    ("list_categories",        "power",   false),
-    ("get_user_data",          "user",    false),
-    ("get_user_bonus_history", "user",    false),
-    ("update_seedbox_ip",      "seedbox", false),
+    ("mam_search_audiobooks",      "default", true),
+    ("mam_search_ebooks",          "default", true),
+    ("mam_search_music",           "default", true),
+    ("mam_search_radio",           "default", true),
+    ("mam_get_torrent_details",    "default", true),
+    ("mam_get_ip_info",            "seedbox", false),
+    ("mam_search_torrents",        "power",   false),
+    ("mam_list_categories",        "power",   false),
+    ("mam_get_user_data",          "user",    false),
+    ("mam_get_user_bonus_history", "user",    false),
+    ("mam_update_seedbox_ip",      "seedbox", false),
 ];
 
 /// All tool names known to MamServer.
 pub const ALL_TOOL_NAMES: &[&str] = &[
-    "search_audiobooks",
-    "search_ebooks",
-    "search_music",
-    "search_radio",
-    "get_torrent_details",
-    "get_ip_info",
-    "search_torrents",
-    "list_categories",
-    "get_user_data",
-    "get_user_bonus_history",
-    "update_seedbox_ip",
+    "mam_search_audiobooks",
+    "mam_search_ebooks",
+    "mam_search_music",
+    "mam_search_radio",
+    "mam_get_torrent_details",
+    "mam_get_ip_info",
+    "mam_search_torrents",
+    "mam_list_categories",
+    "mam_get_user_data",
+    "mam_get_user_bonus_history",
+    "mam_update_seedbox_ip",
 ];
 
 impl MamServer {
