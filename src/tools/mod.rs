@@ -1058,7 +1058,6 @@ impl MamServer {
             "hash": "",
             "sortType": sort_type,
             "startNumber": offset,
-            "perpage": limit,
         });
         // Omit browse_lang when empty — sending [] breaks the MAM search engine
         if !lang.is_empty() {
@@ -1069,6 +1068,7 @@ impl MamServer {
         }
         let body = serde_json::json!({
             "tor": tor,
+            "perpage": limit,
             "dlLink": "true",
             "thumbnail": "false",
         });
