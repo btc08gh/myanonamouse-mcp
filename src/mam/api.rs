@@ -1,13 +1,7 @@
 // Copyright (c) 2026 Sandy McArthur, Jr.
 // SPDX-License-Identifier: MIT
 
-use serde::Deserialize;
-
 use super::{enrich_error, BASE_URL};
-use super::format::{
-    format_bonus_history, format_search_response, format_torrent_detail, format_user_data,
-};
-use super::types::{BonusEntry, SearchResponse, TorrentDetail, UserDataResponse};
 
 pub(crate) async fn do_search(
     client: &reqwest::Client,
@@ -69,17 +63,14 @@ pub(crate) async fn do_search(
         if v.get("data").is_none() {
             if let Some(msg) = v.get("error").and_then(|e| e.as_str()) {
                 if msg.contains("Nothing returned") {
-                    return Ok(format!("No results found for \"{query}\"."));
+                    return Ok(r#"{"data":[],"total":0,"found":0}"#.to_string());
                 }
                 return Err(format!("Search error: {msg}"));
             }
         }
     }
 
-    let parsed: SearchResponse = serde_json::from_str(&text)
-        .map_err(|e| format!("Failed to parse search response: {e}\nBody: {text}"))?;
-
-    Ok(format_search_response(parsed, query))
+    Ok(text)
 }
 
 pub(crate) async fn get_user_data(
@@ -108,12 +99,7 @@ pub(crate) async fn get_user_data(
         return Err(enrich_error(status.as_u16(), &text));
     }
 
-    let parsed: UserDataResponse = resp
-        .json()
-        .await
-        .map_err(|e| format!("Failed to parse user data response: {e}"))?;
-
-    Ok(format_user_data(parsed))
+    resp.text().await.map_err(|e| format!("Failed to read user data response: {e}"))
 }
 
 pub(crate) async fn get_user_bonus_history(
@@ -142,12 +128,7 @@ pub(crate) async fn get_user_bonus_history(
         return Err(enrich_error(status.as_u16(), &text));
     }
 
-    let entries: Vec<BonusEntry> = resp
-        .json()
-        .await
-        .map_err(|e| format!("Failed to parse bonus history response: {e}"))?;
-
-    Ok(format_bonus_history(entries))
+    resp.text().await.map_err(|e| format!("Failed to read bonus history response: {e}"))
 }
 
 pub(crate) async fn get_torrent_details(
@@ -189,30 +170,20 @@ pub(crate) async fn get_torrent_details(
         return Err(enrich_error(status.as_u16(), &text));
     }
 
-    let body = resp.text().await.map_err(|e| format!("Failed to read response: {e}"))?;
+    let text = resp.text().await.map_err(|e| format!("Failed to read response: {e}"))?;
 
-    if let Ok(v) = serde_json::from_str::<serde_json::Value>(&body) {
+    if let Ok(v) = serde_json::from_str::<serde_json::Value>(&text) {
         if v.get("data").is_none() {
             if let Some(msg) = v.get("error").and_then(|e| e.as_str()) {
                 if msg.contains("Nothing returned") {
-                    return Ok("No torrent found.".to_string());
+                    return Ok(r#"{"data":[],"total":0,"found":0}"#.to_string());
                 }
                 return Err(format!("Lookup error: {msg}"));
             }
         }
     }
 
-    #[derive(Deserialize)]
-    struct DetailResponse {
-        data: Vec<TorrentDetail>,
-    }
-    let parsed: DetailResponse = serde_json::from_str(&body)
-        .map_err(|e| format!("Failed to parse response: {e}\nBody: {body}"))?;
-
-    match parsed.data.into_iter().next() {
-        None => Ok("No torrent found.".to_string()),
-        Some(t) => Ok(format_torrent_detail(t)),
-    }
+    Ok(text)
 }
 
 pub(crate) async fn update_seedbox_ip(client: &reqwest::Client) -> Result<String, String> {
@@ -231,27 +202,15 @@ pub(crate) async fn update_seedbox_ip(client: &reqwest::Client) -> Result<String
 
     if let Ok(v) = serde_json::from_str::<serde_json::Value>(&text) {
         let success = v.get("Success").and_then(|s| s.as_bool()).unwrap_or(false);
-        let msg = v
-            .get("msg")
-            .and_then(|m| m.as_str())
-            .unwrap_or("(no message)");
-        let ip = v.get("ip").and_then(|i| i.as_str()).unwrap_or("");
-        let asn = v.get("ASN").and_then(|a| a.as_str()).unwrap_or_default();
-
         if !success {
+            let msg = v
+                .get("msg")
+                .and_then(|m| m.as_str())
+                .unwrap_or("(no message)");
             return Err(format!(
                 "{msg}\n[Hint: This endpoint is rate-limited to once per hour.]"
             ));
         }
-
-        let mut out = msg.to_string();
-        if !ip.is_empty() {
-            out.push_str(&format!("\nRegistered IP: {ip}"));
-        }
-        if !asn.is_empty() {
-            out.push_str(&format!("\nASN: {asn}"));
-        }
-        return Ok(out);
     }
 
     Ok(text)

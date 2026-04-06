@@ -95,8 +95,14 @@ async fn main() -> anyhow::Result<()> {
     let client = Arc::new(mam::build_client(&mam_session)?);
 
     if cli.test_connection {
-        let ip_info = mam::get_ip_info(&client).await?;
-        eprintln!("Connection OK. IP: {}, ASN: {}", ip_info.ip, ip_info.asn_string());
+        let body = mam::get_ip_info(&client).await?;
+        let v: serde_json::Value = serde_json::from_str(&body)
+            .map_err(|e| anyhow::anyhow!("Failed to parse IP info: {e}"))?;
+        let ip = v.get("ip").and_then(|x| x.as_str()).unwrap_or("?");
+        let asn = v.get("ASN")
+            .map(|x| match x { serde_json::Value::Number(n) => n.to_string(), serde_json::Value::String(s) => s.clone(), _ => String::new() })
+            .unwrap_or_default();
+        eprintln!("Connection OK. IP: {ip}, ASN: {asn}");
         return Ok(());
     }
 

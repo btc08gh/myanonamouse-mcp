@@ -2,13 +2,10 @@
 // SPDX-License-Identifier: MIT
 
 pub(crate) mod api;
-pub(crate) mod format;
 pub(crate) mod lookup;
-pub(crate) mod types;
 
 use anyhow::anyhow;
 use reqwest::header::{self, HeaderMap, HeaderValue};
-use serde::Deserialize;
 
 pub const BASE_URL: &str = "https://www.myanonamouse.net";
 
@@ -26,28 +23,9 @@ pub fn build_client(mam_session: &str) -> anyhow::Result<reqwest::Client> {
         .map_err(|e| anyhow!("Failed to build HTTP client: {e}"))
 }
 
-/// Response from `/json/jsonIp.php`
-#[derive(Debug, Deserialize)]
-pub struct IpInfo {
-    pub ip: String,
-    #[serde(rename = "ASN")]
-    pub asn: serde_json::Value,
-    #[serde(rename = "AS")]
-    pub as_org: String,
-}
-
-impl IpInfo {
-    pub fn asn_string(&self) -> String {
-        match &self.asn {
-            serde_json::Value::Number(n) => n.to_string(),
-            serde_json::Value::String(s) => s.clone(),
-            _ => String::new(),
-        }
-    }
-}
-
 /// Fetch current IP info — used by `--test-connection` and the `get_ip_info` tool.
-pub async fn get_ip_info(client: &reqwest::Client) -> anyhow::Result<IpInfo> {
+/// Returns the raw JSON response body from MAM.
+pub async fn get_ip_info(client: &reqwest::Client) -> anyhow::Result<String> {
     let resp = client
         .get(format!("{BASE_URL}/json/jsonIp.php"))
         .send()
@@ -60,8 +38,7 @@ pub async fn get_ip_info(client: &reqwest::Client) -> anyhow::Result<IpInfo> {
         return Err(anyhow!(enrich_error(status.as_u16(), &body)));
     }
 
-    serde_json::from_str::<IpInfo>(&body)
-        .map_err(|e| anyhow!("Failed to parse IP info response: {e}\nBody: {body}"))
+    Ok(body)
 }
 
 /// Produce a human-readable error string for MAM HTTP errors, with LLM hints where useful.
