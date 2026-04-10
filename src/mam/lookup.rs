@@ -271,3 +271,26 @@ pub(crate) fn parse_sort(s: &str) -> Result<&'static str, String> {
         )),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_normalize_lookup() {
+        assert_eq!(normalize_lookup("Action-Adventure"), "action adventure");
+        assert_eq!(normalize_lookup("Sci-Fi"), "sci fi");
+        assert_eq!(normalize_lookup("  Classics  "), "classics");
+        assert_eq!(normalize_lookup("Title (A-Z)"), "title a z");
+    }
+
+    #[test]
+    fn test_parse_sort() {
+        assert_eq!(parse_sort("newest").unwrap(), "dateDesc");
+        assert_eq!(parse_sort("most seeders").unwrap(), "seedersDesc");
+        assert_eq!(parse_sort("title a-z").unwrap(), "titleAsc");
+        assert_eq!(parse_sort("most snatched").unwrap(), "snatchedDesc");
+        assert_eq!(parse_sort("").unwrap(), "default");
+        assert!(parse_sort("invalid").is_err());
+    }
+}

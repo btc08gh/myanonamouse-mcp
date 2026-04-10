@@ -182,6 +182,21 @@ struct SearchParams {
     min_seeders: Option<i32>,
     /// Subcategory ID. Call list_categories for the full table.
     cat: Option<Vec<u32>>,
+    /// Fields to search in. Valid values: title, author, description, tags, series, narrator, filenames, fileTypes.
+    /// Defaults to title, author, series, narrator.
+    #[serde(default, deserialize_with = "string_or_vec::deserialize")]
+    #[schemars(transform = remove_null_default)]
+    srch_in: Option<Vec<String>>,
+}
+
+#[derive(Deserialize, schemars::JsonSchema)]
+struct GetTop10Params {
+    /// Time period for Top 10: day, week, month, year, all (default).
+    period: Option<String>,
+    /// Main category ID: 13 (AudioBooks), 14 (E-Books), 15 (Musicology), 16 (Radio). Omit for all.
+    main_cat: Option<Vec<u32>>,
+    /// Subcategory ID. Call list_categories for the full table.
+    cat: Option<Vec<u32>>,
 }
 
 #[derive(Deserialize, schemars::JsonSchema)]
@@ -255,6 +270,7 @@ impl MamServer {
             p.min_seeders,
             p.limit.unwrap_or(20).min(100),
             p.offset.unwrap_or(0),
+            None,
         )
         .await
     }
@@ -296,6 +312,7 @@ impl MamServer {
             p.min_seeders,
             p.limit.unwrap_or(20).min(100),
             p.offset.unwrap_or(0),
+            None,
         )
         .await
     }
@@ -335,6 +352,7 @@ impl MamServer {
             p.min_seeders,
             p.limit.unwrap_or(20).min(100),
             p.offset.unwrap_or(0),
+            None,
         )
         .await
     }
@@ -371,6 +389,7 @@ impl MamServer {
             p.min_seeders,
             p.limit.unwrap_or(20).min(100),
             p.offset.unwrap_or(0),
+            None,
         )
         .await
     }
@@ -411,6 +430,20 @@ impl MamServer {
             p.min_seeders,
             p.limit.unwrap_or(20).min(100),
             p.offset.unwrap_or(0),
+            p.srch_in,
+        )
+        .await
+    }
+
+    /// Fetch the top 10 most-snatched torrents on MyAnonamouse (MAM).
+    /// Can be filtered by category and time period (day, week, month, year, all).
+    #[tool(name = "mam_get_top_10", title = "Get Top 10", annotations(read_only_hint = true, destructive_hint = false, idempotent_hint = true))]
+    async fn get_top_10(&self, Parameters(p): Parameters<GetTop10Params>) -> Result<String, String> {
+        crate::mam::api::get_top_10(
+            &self.client,
+            p.main_cat.unwrap_or_default(),
+            p.cat.unwrap_or_default(),
+            p.period.as_deref(),
         )
         .await
     }
@@ -496,6 +529,7 @@ pub const TOOL_REGISTRY: &[(&str, &str, bool)] = &[
     ("mam_search_music",           "default", true),
     ("mam_search_radio",           "default", true),
     ("mam_get_torrent_details",    "default", true),
+    ("mam_get_top_10",             "default", true),
     ("mam_get_ip_info",            "seedbox", false),
     ("mam_search_torrents",        "power",   false),
     ("mam_list_categories",        "power",   false),
@@ -511,6 +545,7 @@ pub const ALL_TOOL_NAMES: &[&str] = &[
     "mam_search_music",
     "mam_search_radio",
     "mam_get_torrent_details",
+    "mam_get_top_10",
     "mam_get_ip_info",
     "mam_search_torrents",
     "mam_list_categories",

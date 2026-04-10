@@ -16,6 +16,7 @@
 
 # Claude Code local settings
 .claude/
+.mcp.json
 
 # OS
 .DS_Store

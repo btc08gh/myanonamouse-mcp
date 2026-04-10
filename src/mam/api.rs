@@ -20,10 +20,17 @@ pub(crate) async fn do_search(
     min_seeders: Option<i32>,
     limit: u32,
     offset: u32,
+    srch_in: Option<Vec<String>>,
 ) -> Result<String, String> {
+    let srch_in_val = if let Some(fields) = srch_in {
+        serde_json::json!(fields)
+    } else {
+        serde_json::json!(["title", "author", "narrator", "series"])
+    };
+
     let mut tor = serde_json::json!({
         "text": query,
-        "srchIn": ["title", "author", "narrator", "series"],
+        "srchIn": srch_in_val,
         "searchType": search_type,
         "searchIn": "torrents",
         "main_cat": main_cat,
@@ -213,6 +220,76 @@ pub(crate) async fn get_torrent_details(
         None => Ok("No torrent found.".to_string()),
         Some(t) => Ok(format_torrent_detail(t)),
     }
+}
+
+pub(crate) async fn get_top_10(
+    client: &reqwest::Client,
+    main_cat: Vec<u32>,
+    cat: Vec<u32>,
+    period: Option<&str>,
+) -> Result<String, String> {
+    let now = chrono::Utc::now().timestamp();
+    let start_date = match period {
+        Some("day") => (now - 86400).to_string(),
+        Some("week") => (now - 7 * 86400).to_string(),
+        Some("month") => (now - 30 * 86400).to_string(),
+        Some("year") => (now - 365 * 86400).to_string(),
+        _ => "".to_string(),
+    };
+    let end_date = if start_date.is_empty() {
+        "".to_string()
+    } else {
+        now.to_string()
+    };
+
+    let mut tor = serde_json::json!({
+        "text": "",
+        "searchType": "all",
+        "searchIn": "torrents",
+        "main_cat": main_cat,
+        "cat": cat,
+        "sortType": "snatchedDesc",
+        "startNumber": 0,
+        "startDate": start_date,
+        "endDate": end_date,
+    });
+
+    if cat.is_empty() && main_cat.is_empty() {
+        tor["cat"] = serde_json::json!([0]);
+    }
+
+    let body = serde_json::json!({
+        "tor": tor,
+        "perpage": 10,
+        "dlLink": "true",
+        "bookmarks": "true",
+    });
+
+    let resp = client
+        .post(format!("{BASE_URL}/tor/js/loadSearchJSONbasic.php"))
+        .json(&body)
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {e}"))?;
+
+    let status = resp.status();
+    if !status.is_success() {
+        let text = resp.text().await.unwrap_or_default();
+        return Err(enrich_error(status.as_u16(), &text));
+    }
+
+    let text = resp.text().await.map_err(|e| format!("Failed to read response: {e}"))?;
+    let parsed: SearchResponse = serde_json::from_str(&text)
+        .map_err(|e| format!("Failed to parse response: {e}\nBody: {text}"))?;
+
+    let period_label = match period {
+        Some("day") => "past day",
+        Some("week") => "past week",
+        Some("month") => "past month",
+        Some("year") => "past year",
+        _ => "all time",
+    };
+    Ok(format_search_response(parsed, &format!("Top 10 ({period_label})")))
 }
 
 pub(crate) async fn update_seedbox_ip(client: &reqwest::Client) -> Result<String, String> {
