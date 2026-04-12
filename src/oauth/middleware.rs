@@ -66,16 +66,37 @@ fn unauthorized_response(state: &OAuthState) -> Response {
 }
 
 /// Extract the client IP from proxy headers, preferring X-Real-IP, then X-Forwarded-For.
+///
+/// Normalizes the result by stripping ports (1.2.3.4:5678 -> 1.2.3.4) and IPv6 brackets
+/// ([2001:db8::1]:443 -> 2001:db8::1).
 pub fn extract_client_ip(headers: &axum::http::HeaderMap) -> String {
     // X-Real-IP: single IP set by nginx
-    if let Some(ip) = headers.get("X-Real-IP").and_then(|v| v.to_str().ok()) {
-        return ip.to_string();
-    }
-    // X-Forwarded-For: comma-separated list; use the first (leftmost) entry
-    if let Some(xff) = headers.get("X-Forwarded-For").and_then(|v| v.to_str().ok()) {
-        if let Some(first) = xff.split(',').next() {
-            return first.trim().to_string();
+    let ip = if let Some(ip) = headers.get("X-Real-IP").and_then(|v| v.to_str().ok()) {
+        ip
+    } else if let Some(xff) = headers.get("X-Forwarded-For").and_then(|v| v.to_str().ok()) {
+        // X-Forwarded-For: comma-separated list; use the first (leftmost) entry
+        xff.split(',').next().unwrap_or(xff).trim()
+    } else {
+        return "unknown".to_string();
+    };
+
+    // Normalize: strip port and brackets
+    // 1.2.3.4:5678 -> 1.2.3.4
+    // [2001:db8::1]:443 -> 2001:db8::1
+    if let Some(pos) = ip.rfind(':') {
+        let potential_ip = &ip[..pos];
+        // If it was [ipv6]:port, potential_ip is [ipv6]
+        if potential_ip.contains(']') {
+            potential_ip.trim_matches(|c| c == '[' || c == ']').to_string()
+        } else if potential_ip.contains(':') {
+            // It was an IPv6 without a port (contains multiple colons)
+            ip.to_string()
+        } else {
+            // It was an IPv4:port
+            potential_ip.to_string()
         }
+    } else {
+        // No colon at all, already clean
+        ip.to_string()
     }
-    "unknown".to_string()
 }

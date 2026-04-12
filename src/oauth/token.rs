@@ -186,16 +186,10 @@ async fn handle_refresh_token(
     }
 
     // Rotate the refresh token (returns new access + refresh tokens)
-    let Some((token_client_id, new_access, new_refresh)) = state.rotate_refresh_token(old_refresh) else {
-        warn!(client_ip, client_id, "token refresh: invalid or expired refresh token");
+    let Some((new_access, new_refresh)) = state.rotate_refresh_token(old_refresh, client_id) else {
+        warn!(client_ip, client_id, "token refresh: invalid, expired, or wrong-client refresh token");
         return token_error("invalid_grant", "invalid or expired refresh token");
     };
-
-    // Verify the refresh token belongs to this client
-    if token_client_id != *client_id {
-        warn!(client_ip, client_id, "token refresh: client_id mismatch");
-        return token_error("invalid_grant", "refresh token was not issued to this client");
-    }
 
     debug!(client_ip, client_id, "access token refreshed");
     token_success(&new_access, &new_refresh)

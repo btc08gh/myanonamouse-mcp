@@ -228,11 +228,17 @@ impl OAuthState {
         token
     }
 
-    /// Consume a refresh token (rotation). Returns the client_id and a new (access_token, refresh_token)
-    /// pair, or None if the token is invalid/expired/past grace period.
-    pub fn rotate_refresh_token(&self, old_token: &str) -> Option<(String, String, String)> {
+    /// Consume a refresh token (rotation). Returns a new (access_token, refresh_token)
+    /// pair, or None if the token is invalid/expired/past grace period/wrong client.
+    pub fn rotate_refresh_token(&self, old_token: &str, client_id: &str) -> Option<(String, String)> {
         let mut tokens = self.refresh_tokens.lock().unwrap();
         let rt = tokens.get_mut(old_token)?;
+
+        // Verify the refresh token belongs to this client BEFORE we mark it superseded.
+        if rt.client_id != client_id {
+            return None;
+        }
+
         let now = Instant::now();
 
         // Check expiry
@@ -249,18 +255,16 @@ impl OAuthState {
             }
         }
 
-        let client_id = rt.client_id.clone();
-
         // Mark old token as superseded (keep for grace period)
         rt.superseded_at = Some(now);
 
         // Drop the lock before calling methods that re-acquire it
         drop(tokens);
 
-        let new_access = self.insert_access_token(client_id.clone());
-        let new_refresh = self.insert_refresh_token(client_id.clone());
+        let new_access = self.insert_access_token(client_id.to_string());
+        let new_refresh = self.insert_refresh_token(client_id.to_string());
 
-        Some((client_id, new_access, new_refresh))
+        Some((new_access, new_refresh))
     }
 
     // -- Cleanup --
