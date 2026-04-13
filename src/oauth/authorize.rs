@@ -64,19 +64,14 @@ fn error_json(status: StatusCode, error: &str, description: &str) -> Response {
 }
 
 fn redirect_error(redirect_uri: &str, error: &str, description: &str, state: Option<&str>) -> Response {
-    let mut url = format!(
-        "{}?error={}&error_description={}",
-        redirect_uri,
-        form_urlencoded::byte_serialize(error.as_bytes()).collect::<String>(),
-        form_urlencoded::byte_serialize(description.as_bytes()).collect::<String>(),
-    );
+    let mut url = url::Url::parse(redirect_uri).expect("redirect_uri was validated at registration");
+    url.query_pairs_mut()
+        .append_pair("error", error)
+        .append_pair("error_description", description);
     if let Some(s) = state {
-        url.push_str(&format!(
-            "&state={}",
-            form_urlencoded::byte_serialize(s.as_bytes()).collect::<String>()
-        ));
+        url.query_pairs_mut().append_pair("state", s);
     }
-    Redirect::to(&url).into_response()
+    Redirect::to(url.as_str()).into_response()
 }
 
 fn consent_page(client_name: &str, nonce: &str, requires_password: bool) -> String {
@@ -251,17 +246,11 @@ pub async fn handle_authorize_post(
     debug!(client_ip, client_id = pending.client_id, "authorization code issued");
 
     // Redirect with code and state
-    let mut url = format!(
-        "{}?code={}",
-        pending.redirect_uri,
-        form_urlencoded::byte_serialize(code.as_bytes()).collect::<String>(),
-    );
+    let mut url = url::Url::parse(&pending.redirect_uri).expect("redirect_uri was validated at registration");
+    url.query_pairs_mut().append_pair("code", &code);
     if let Some(s) = state_param {
-        url.push_str(&format!(
-            "&state={}",
-            form_urlencoded::byte_serialize(s.as_bytes()).collect::<String>()
-        ));
+        url.query_pairs_mut().append_pair("state", s);
     }
 
-    Redirect::to(&url).into_response()
+    Redirect::to(url.as_str()).into_response()
 }

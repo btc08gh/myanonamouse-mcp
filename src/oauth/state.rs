@@ -92,7 +92,7 @@ pub struct OAuthState {
 impl OAuthState {
     pub fn new(issuer: String, api_token: Option<String>) -> Self {
         Self {
-            issuer,
+            issuer: issuer.trim_end_matches('/').to_string(),
             api_token,
             clients: Mutex::new(HashMap::new()),
             auth_codes: Mutex::new(HashMap::new()),
@@ -253,9 +253,13 @@ impl OAuthState {
                 tokens.remove(old_token);
                 return None;
             }
+            // Already superseded but within grace period — reject rather than
+            // minting yet another token pair, which would extend the window
+            // indefinitely and defeat rotation security.
+            return None;
         }
 
-        // Mark old token as superseded (keep for grace period)
+        // Mark old token as superseded (keep for grace period for one retry)
         rt.superseded_at = Some(now);
 
         // Drop the lock before calling methods that re-acquire it

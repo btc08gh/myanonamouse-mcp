@@ -42,14 +42,18 @@ fn validate_redirect_uri(uri: &str) -> Result<(), String> {
     };
 
     let scheme = parsed.scheme();
-    let host = parsed.host_str().unwrap_or("");
 
     if scheme == "https" {
         return Ok(());
     }
 
     if scheme == "http" {
-        let is_loopback = host == "localhost" || host == "127.0.0.1" || host == "[::1]";
+        let is_loopback = match parsed.host() {
+            Some(url::Host::Domain(d)) => d == "localhost",
+            Some(url::Host::Ipv4(ip)) => ip.is_loopback(),
+            Some(url::Host::Ipv6(ip)) => ip.is_loopback(),
+            None => false,
+        };
         if is_loopback {
             return Ok(());
         }

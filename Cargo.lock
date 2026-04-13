@@ -1152,7 +1152,6 @@ dependencies = [
  "base64",
  "chrono",
  "clap",
- "form_urlencoded",
  "htmd",
  "rand 0.9.3",
  "reqwest",
