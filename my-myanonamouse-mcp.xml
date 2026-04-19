@@ -2,26 +2,25 @@
 <Container version="2">
   <Name>myanonamouse-mcp</Name>
   <Repository>myanonamouse-mcp:latest</Repository>
-  <Registry>https://github.com/sandymac/myanonamouse-mcp</Registry>
+  <Registry>https://github.com/btc08gh/myanonamouse-mcp</Registry>
   <Network>bridge</Network>
   <MyIP/>
   <Shell>sh</Shell>
   <Privileged>false</Privileged>
-  <Support>https://github.com/sandymac/myanonamouse-mcp/issues</Support>
-  <Project>https://github.com/sandymac/myanonamouse-mcp</Project>
+  <Support>https://github.com/btc08gh/myanonamouse-mcp/issues</Support>
+  <Project>https://github.com/btc08gh/myanonamouse-mcp</Project>
   <ReadMe/>
   <Overview>MCP server for MyAnonamouse. Runs in HTTP transport mode for remote MCP clients.</Overview>
   <Category>Network:Web:</Category>
   <WebUI>http://[IP]:[PORT:8080]/mcp</WebUI>
   <TemplateURL/>
-  <Icon>https://raw.githubusercontent.com/homarr-labs/dashboard-icons/main/svg/bookstack.svg</Icon>
+  <Icon>https://raw.githubusercontent.com/btc08gh/myanonamouse-mcp/main/Myanonamouse.png</Icon>
   <ExtraParams/>
   <PostArgs>--transport http --http-bind 0.0.0.0:8080</PostArgs>
   <CPUset/>
   <DateInstalled>1776621927</DateInstalled>
   <DonateText/>
   <DonateLink/>
-
   <Requires>This requires a docker image named myanonamouse-mcp:latest.&#13;
 &#13;
 You can build it from source using the Dockerfile found here:&#13;
