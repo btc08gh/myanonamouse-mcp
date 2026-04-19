@@ -1,0 +1,50 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>myanonamouse-mcp</Name>
+  <Repository>myanonamouse-mcp:latest</Repository>
+  <Registry>https://github.com/sandymac/myanonamouse-mcp</Registry>
+  <Network>bridge</Network>
+  <MyIP/>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/sandymac/myanonamouse-mcp/issues</Support>
+  <Project>https://github.com/sandymac/myanonamouse-mcp</Project>
+  <ReadMe/>
+  <Overview>MCP server for MyAnonamouse. Runs in HTTP transport mode for remote MCP clients.</Overview>
+  <Category>Network:Web:</Category>
+  <WebUI>http://[IP]:[PORT:8080]/mcp</WebUI>
+  <TemplateURL/>
+  <Icon>https://raw.githubusercontent.com/homarr-labs/dashboard-icons/main/svg/bookstack.svg</Icon>
+  <ExtraParams/>
+  <PostArgs>--transport http --http-bind 0.0.0.0:8080</PostArgs>
+  <CPUset/>
+  <DateInstalled>1776621927</DateInstalled>
+  <DonateText/>
+  <DonateLink/>
+
+  <Requires>This requires a docker image named myanonamouse-mcp:latest.&#13;
+&#13;
+You can build it from source using the Dockerfile found here:&#13;
+https://github.com/btc08gh/myanonamouse-mcp&#13;
+&#13;
+docker build -t myanonamouse-mcp:latest .&#13;
+&#13;
+You can test your container like so:&#13;
+&#13;
+docker run -d \&#13;
+  --name myanonamouse-mcp \&#13;
+  -p 8080:8080 \&#13;
+  -e MAM_SESSION='&lt;TOKEN GOES HERE&gt;' \&#13;
+  -e MAM_API_TOKEN='&lt;API TOKEN GOES HERE&gt;' \&#13;
+  myanonamouse-mcp:latest</Requires>
+
+  <Config Name="WebUI Port" Target="8080" Default="8080" Mode="tcp" Description="HTTP port for the MCP endpoint at /mcp" Type="Port" Display="always" Required="true" Mask="false">8080</Config>
+
+  <Config Name="MAM Session" Target="MAM_SESSION" Default="" Mode="" Description="Required. Your MyAnonamouse mam_id cookie from Preferences - Security." Type="Variable" Display="always" Required="true" Mask="true"></Config>
+
+  <Config Name="MCP API Token" Target="MAM_API_TOKEN" Default="" Mode="" Description="Recommended. A random secret you create to protect the MCP HTTP endpoint. You can generate one with: openssl rand -hex 32. Clients send Authorization: Bearer token." Type="Variable" Display="always" Required="false" Mask="true"></Config>
+
+  <Config Name="OAuth Issuer" Target="MAM_OAUTH_ISSUER" Default="" Mode="" Description="Optional OAuth issuer URL for HTTP transport. Most users should leave this blank." Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
+
+  <TailscaleStateDir/>
+</Container>

@@ -1,5 +1,4 @@
-# myanonamouse-mcp
-
+# myanonamouse-mcp 
 An MCP (Model Context Protocol) server for [MyAnonamouse](https://www.myanonamouse.net) (MAM), a private tracker specialising in audiobooks and ebooks. Exposes MAM search and user tools to any MCP-compatible client such as Claude Desktop.
 
 ## Prerequisites
@@ -161,3 +160,16 @@ Authorization: Bearer your-secret-token
 - Use `sort: "newest"` to find recently added content
 - Use `get_torrent_details` after a search to get the full description, ISBN, media info, and all metadata for a specific torrent
 - Use `offset` and `limit` to page through large result sets
+
+
+## Buidling a Docker Container
+
+```bash
+docker build -t myanonamouse-mcp:latest .
+docker run -d \
+  --name myanonamouse-mcp \
+  -p 8080:8080 \
+  -e MAM_SESSION='<TOKEN GOES HERE>' \
+  -e MAM_API_TOKEN='<API TOKEN GOES HERE>' \
+  myanonamouse-mcp:latest
+```
