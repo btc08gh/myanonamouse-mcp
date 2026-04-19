@@ -178,3 +178,4 @@ docker run -d \
 
 - Download the `my-myanonamouse-mcp.xml` file and copy it to:
   `/boot/config/plugins/dockerMan/templates-user/my-myanonamouse-mcp.xml`
+- Deploy docker container and select the `myanonamouse-mcp` template from the drop-down.
