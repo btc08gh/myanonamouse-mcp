@@ -162,7 +162,7 @@ Authorization: Bearer your-secret-token
 - Use `offset` and `limit` to page through large result sets
 
 
-## Buidling a Docker Container
+## Building a Docker Container
 
 ```bash
 docker build -t myanonamouse-mcp:latest .
@@ -173,3 +173,8 @@ docker run -d \
   -e MAM_API_TOKEN='<API TOKEN GOES HERE>' \
   myanonamouse-mcp:latest
 ```
+
+## Unraid Template
+
+- Download the `my-myanonamouse-mcp.xml` file and copy it to:
+  `/boot/config/plugins/dockerMan/templates-user/my-myanonamouse-mcp.xml`
